@@ -1,0 +1,14 @@
+docker run -d \
+  --name pgadmin \
+  -p 9090:80 \
+  -e PGADMIN_DEFAULT_EMAIL=admin@admin.com \
+  -e PGADMIN_DEFAULT_PASSWORD=admin \
+  dpage/pgadmin4
+
+
+###### ABA CONEXÃO
+System: PostgreSQL
+Server: host.docker.internal
+Database: financeiro_encontro
+Username: financeiro
+Password: financeiro

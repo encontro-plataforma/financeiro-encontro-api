@@ -1,0 +1,6 @@
+Generic single-database configuration.
+
+comandos:
+- gerar: alembic revision --autogenerate -m "initial migration"
+- atualizar: alembic upgrade head
+   - Carregando .env => export $(grep -v '^#' .env | xargs) && alembic upgrade head
