@@ -30,6 +30,7 @@ class EncontreiroResponse(BaseModel):
     pagamento: Optional[Decimal]
     observacao: Optional[str]
     criado_em: datetime
+    auditado: bool
 
     class Config:
         from_attributes = True

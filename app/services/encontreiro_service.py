@@ -9,6 +9,7 @@ from app.models.encontreiro import Encontreiro
 from app.models.enums import SituacaoCamisa, StatusProcessamento
 from app.repositories.encontreiro_repository import EncontreiroRepository
 from app.repositories.equipe_repository import EquipeRepository
+from app.services.auditoria_service import AuditoriaService
 from app.services.upload_file_service import UploadFileService
 from app.utils.parse_utils import normalizar_cabecalho, parse_date_br, parse_decimal_br
 
@@ -189,6 +190,8 @@ class EncontreiroService:
             db.commit()
 
             UploadFileService.update_status(db, upload.id, StatusProcessamento.PROCESSADO)
+
+            AuditoriaService.processar(db)
 
             return {
                 "inseridos": inseridos,

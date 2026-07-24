@@ -18,6 +18,13 @@
 - Módulo Secretaria: entidade `Encontrista` com CRUD completo e conciliação via importação de CSV
   (`POST /encontristas/conciliacao`), vinculada a um Encontreiro padrinho (obrigatório) e a um Círculo
   (opcional)
+- Módulo Secretaria: entidade `Detalhamento`, ligando um `Lancamento` a uma ou mais inscrições
+  (Encontreiro/Encontrista) ou outra origem (oferta, etc.), com CRUD completo e novo indicador
+  `auditado` em Encontreiro/Encontrista
+- Serviço de auditoria automática (`POST /detalhamentos/auditoria`) que casa inscrições pendentes de
+  pagamento com lançamentos financeiros pela data/valor e interpreta a observação da inscrição para
+  identificar pagamentos combinados (ex.: oferta ou outra inscrição paga no mesmo PIX). É executado
+  automaticamente ao final de cada conciliação de Encontreiro/Encontrista
 
 ## [0.0.1] — 2026-07-18
 

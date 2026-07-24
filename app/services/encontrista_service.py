@@ -10,6 +10,7 @@ from app.models.enums import StatusProcessamento
 from app.repositories.circulo_repository import CirculoRepository
 from app.repositories.encontreiro_repository import EncontreiroRepository
 from app.repositories.encontrista_repository import EncontristaRepository
+from app.services.auditoria_service import AuditoriaService
 from app.services.upload_file_service import UploadFileService
 from app.utils.parse_utils import parse_bool, parse_date_br, parse_decimal_br
 
@@ -189,6 +190,8 @@ class EncontristaService:
             db.commit()
 
             UploadFileService.update_status(db, upload.id, StatusProcessamento.PROCESSADO)
+
+            AuditoriaService.processar(db)
 
             return {
                 "inseridos": inseridos,
