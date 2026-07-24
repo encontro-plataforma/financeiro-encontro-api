@@ -19,10 +19,10 @@ from app.routers.circulo_router import router as circulo_router
 from app.routers.conciliacao_router import router as conciliacao_router
 from app.routers.dashboard_router import router as dashboard_router
 from app.routers.equipe_router import router as equipe_router
-from app.routers.extrato_bancario_router import router as extrato_bancario_router
 from app.routers.finalidade_router import router as finalidade_router
 from app.routers.lancamento_router import router as lancamento_router
 from app.routers.relatorio_router import router as relatorio_router
+from app.routers.upload_file_router import router as upload_file_router
 from app.routers.usuario_router import router as usuario_router
 
 logger = logging.getLogger("uvicorn.error")
@@ -83,7 +83,7 @@ app.include_router(auth_router)
 _protected = {"dependencies": [Depends(get_current_user)]}
 app.include_router(lancamento_router, **_protected)
 app.include_router(finalidade_router, **_protected)
-app.include_router(extrato_bancario_router, **_protected)
+app.include_router(upload_file_router, **_protected)
 app.include_router(conciliacao_router, **_protected)
 app.include_router(dashboard_router, **_protected)
 app.include_router(relatorio_router, **_protected)

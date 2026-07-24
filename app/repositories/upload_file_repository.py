@@ -1,24 +1,24 @@
 from sqlalchemy.orm import Session
-from app.models.extrato_bancario import ExtratoBancario
+from app.models.upload_file import UploadFile
 from app.utils.sort_utils import apply_sort
 
 
 SORT_FIELDS = {
-    "nome_arquivo": ExtratoBancario.nome_arquivo,
-    "tamanho_bytes": ExtratoBancario.tamanho_bytes,
-    "processado_em": ExtratoBancario.processado_em,
+    "nome_arquivo": UploadFile.nome_arquivo,
+    "tamanho_bytes": UploadFile.tamanho_bytes,
+    "processado_em": UploadFile.processado_em,
 }
 
 DEFAULT_SORT = "processado_em:desc"
 
 
-class ExtratoBancarioRepository:
+class UploadFileRepository:
 
     @staticmethod
-    def get_by_id(db: Session, extrato_id: int):
+    def get_by_id(db: Session, upload_id: int):
         return (
-            db.query(ExtratoBancario)
-            .filter(ExtratoBancario.id == extrato_id)
+            db.query(UploadFile)
+            .filter(UploadFile.id == upload_id)
             .first()
         )
 
@@ -26,31 +26,31 @@ class ExtratoBancarioRepository:
     def _apply_filters(query, params):
         if params.nome_arquivo:
             query = query.filter(
-                ExtratoBancario.nome_arquivo.ilike(f"%{params.nome_arquivo}%")
+                UploadFile.nome_arquivo.ilike(f"%{params.nome_arquivo}%")
             )
 
         # 🔥 RANGE FILTER (profissional)
         if params.processado_em_inicio:
             query = query.filter(
-                ExtratoBancario.processado_em >= params.processado_em_inicio
+                UploadFile.processado_em >= params.processado_em_inicio
             )
 
         if params.processado_em_fim:
             query = query.filter(
-                ExtratoBancario.processado_em <= params.processado_em_fim
+                UploadFile.processado_em <= params.processado_em_fim
             )
 
         return query
 
     @staticmethod
     def list_all(db: Session, params):
-        query = db.query(ExtratoBancario)
+        query = db.query(UploadFile)
 
-        query = ExtratoBancarioRepository._apply_filters(query, params)
+        query = UploadFileRepository._apply_filters(query, params)
 
         query = apply_sort(
             query,
-            ExtratoBancario,
+            UploadFile,
             params.sort,
             SORT_FIELDS,
             DEFAULT_SORT
@@ -60,13 +60,13 @@ class ExtratoBancarioRepository:
 
     @staticmethod
     def list_with_count(db: Session, params):
-        query = db.query(ExtratoBancario)
+        query = db.query(UploadFile)
 
-        query = ExtratoBancarioRepository._apply_filters(query, params)
+        query = UploadFileRepository._apply_filters(query, params)
 
         query = apply_sort(
             query,
-            ExtratoBancario,
+            UploadFile,
             params.sort,
             SORT_FIELDS,
             DEFAULT_SORT
@@ -79,22 +79,22 @@ class ExtratoBancarioRepository:
 
     @staticmethod
     def create(db: Session, data: dict):
-        obj = ExtratoBancario(**data)
+        obj = UploadFile(**data)
         db.add(obj)
         db.commit()
         db.refresh(obj)
         return obj
 
     @staticmethod
-    def update(db: Session, obj: ExtratoBancario, data: dict):
+    def update(db: Session, obj: UploadFile, data: dict):
         for key, value in data.items():
             setattr(obj, key, value)
 
         db.commit()
         db.refresh(obj)
         return obj
-       
+
     @staticmethod
-    def delete(db: Session, obj: ExtratoBancario):
+    def delete(db: Session, obj: UploadFile):
         db.delete(obj)
         db.commit()

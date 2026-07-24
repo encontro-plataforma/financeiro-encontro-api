@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.integracao.conciliacao.conciliador import Conciliador
-from app.services.extrato_bancario_service import ExtratoBancarioService
+from app.services.upload_file_service import UploadFileService
 from app.services.lancamento_service import LancamentoService
 from app.models.enums import FormaPagamento, StatusLancamento, StatusProcessamento, TipoLancamento
 from app.utils.hash_utils import gerar_hash
@@ -99,7 +99,7 @@ class ConciliacaoService:
                 "Erro ao processar arquivo. Utilize o charset UTF-8 para evitar problemas de acentuação."
             )
 
-        extrato = ExtratoBancarioService.create(db, {
+        upload = UploadFileService.create(db, {
             "nome_arquivo": file.filename,
             "conteudo_csv": conteudo,
             "tamanho_bytes": len(conteudo.encode('utf-8')),
@@ -124,9 +124,9 @@ class ConciliacaoService:
                 except Exception as e:
                     print(f"[DB ERROR] {e}")
 
-            ExtratoBancarioService.update_status(
+            UploadFileService.update_status(
                 db,
-                extrato.id,
+                upload.id,
                 StatusProcessamento.PROCESSADO,
             )
 
@@ -141,9 +141,11 @@ class ConciliacaoService:
             }
 
         except Exception as e:
-            ExtratoBancarioService.update_status(
+            UploadFileService.update_status(
                 db,
-                extrato.id,
+                upload.id,
                 StatusProcessamento.ERRO,
+                error_code="ERRO_PROCESSAMENTO_EXTRATO",
+                error_message=str(e),
             )
             raise Exception(f"Erro ao processar arquivo: {str(e)}")

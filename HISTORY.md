@@ -6,6 +6,11 @@
 - Módulo Secretaria: entidades `Equipe` e `Círculo` com CRUD completo, seeds padrão e novo perfil de
   usuário `SECRETARIO`
 
+### Alterado
+- `ExtratoBancario` renomeado para `UploadFile` (tabela `uploads`, rota `/uploads`), generalizando o
+  serviço de upload de arquivos para os próximos módulos; agora registra `error_code`/`error_message`
+  quando o processamento de um arquivo falha
+
 ## [0.0.1] — 2026-07-18
 
 ### Adicionado
