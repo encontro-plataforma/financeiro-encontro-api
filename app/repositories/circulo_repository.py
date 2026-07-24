@@ -23,6 +23,10 @@ class CirculoRepository:
         return db.query(Circulo).filter(Circulo.id == circulo_id).first()
 
     @staticmethod
+    def get_by_nome(db: Session, nome: str):
+        return db.query(Circulo).filter(Circulo.nome.ilike(nome)).first()
+
+    @staticmethod
     def list_all(db: Session, params):
         query = db.query(Circulo)
         query = _apply_filters(query, params)

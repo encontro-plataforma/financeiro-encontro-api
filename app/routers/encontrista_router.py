@@ -1,0 +1,62 @@
+from typing import List
+
+from fastapi import APIRouter, Depends, File, UploadFile as FastAPIUploadFile
+from sqlalchemy.orm import Session
+
+from app.database.session import get_db
+from app.schemas.encontrista_filter_dto import EncontristaFilterDto
+from app.schemas.encontrista_schema import (
+    EncontristaCreate,
+    EncontristaResponse,
+    EncontristaUpdate,
+)
+from app.schemas.pagination_schema import Page
+from app.services.encontrista_service import EncontristaService
+
+router = APIRouter(prefix="/encontristas", tags=["Secretaria - Encontristas"])
+
+
+@router.get("/", response_model=Page[EncontristaResponse])
+def list_encontristas(
+    params: EncontristaFilterDto = Depends(),
+    db: Session = Depends(get_db),
+):
+    return EncontristaService.list(db, params)
+
+
+@router.get("/all", response_model=List[EncontristaResponse])
+def list_all(
+    params: EncontristaFilterDto = Depends(),
+    db: Session = Depends(get_db),
+):
+    return EncontristaService.list_all(db, params)
+
+
+@router.get("/{encontrista_id}", response_model=EncontristaResponse)
+def get_by_id(encontrista_id: int, db: Session = Depends(get_db)):
+    return EncontristaService.get_by_id(db, encontrista_id)
+
+
+@router.post("/", response_model=EncontristaResponse, status_code=201)
+def create(data: EncontristaCreate, db: Session = Depends(get_db)):
+    return EncontristaService.create(db, data.model_dump())
+
+
+@router.put("/{encontrista_id}", response_model=EncontristaResponse)
+def update(
+    encontrista_id: int,
+    data: EncontristaUpdate,
+    db: Session = Depends(get_db),
+):
+    return EncontristaService.update(db, encontrista_id, data.model_dump(exclude_none=True))
+
+
+@router.delete("/{encontrista_id}")
+def delete(encontrista_id: int, db: Session = Depends(get_db)):
+    EncontristaService.delete(db, encontrista_id)
+    return {"message": "Encontrista removido com sucesso"}
+
+
+@router.post("/conciliacao")
+def conciliar(file: FastAPIUploadFile = File(...), db: Session = Depends(get_db)):
+    return EncontristaService.conciliar_csv(file, db)

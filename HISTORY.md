@@ -15,6 +15,9 @@
 - Módulo Secretaria: entidade `Encontreiro` com CRUD completo e conciliação via importação de CSV
   (`POST /encontreiros/conciliacao`), com atualização de cadastros existentes por ID, deduplicação por
   nome+telefone e validação de equipe
+- Módulo Secretaria: entidade `Encontrista` com CRUD completo e conciliação via importação de CSV
+  (`POST /encontristas/conciliacao`), vinculada a um Encontreiro padrinho (obrigatório) e a um Círculo
+  (opcional)
 
 ## [0.0.1] — 2026-07-18
 
