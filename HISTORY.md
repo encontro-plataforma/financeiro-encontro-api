@@ -1,5 +1,11 @@
 # Histórico de Versões
 
+## [0.1.0] — 2026-07-24
+
+### Adicionado
+- Módulo Secretaria: entidades `Equipe` e `Círculo` com CRUD completo, seeds padrão e novo perfil de
+  usuário `SECRETARIO`
+
 ## [0.0.1] — 2026-07-18
 
 ### Adicionado

@@ -27,3 +27,26 @@ class PerfilUsuario(str, Enum):
     ADMINISTRADOR = "ADMINISTRADOR"
     CONCILIADOR   = "CONCILIADOR"
     REPORTER      = "REPORTER"
+    SECRETARIO    = "SECRETARIO"
+
+
+class AcessoEquipe(str, Enum):
+    EDG      = "EDG"
+    VERMELHO = "VERMELHO"
+    AMARELO  = "AMARELO"
+    VERDE    = "VERDE"
+
+
+class SituacaoCamisa(str, Enum):
+    PENDENTE  = "PENDENTE"
+    SOLICITADA = "SOLICITADA"
+    RECEBIDA  = "RECEBIDA"
+    ENTREGUE  = "ENTREGUE"
+    SEM_BLUSA = "SEM_BLUSA"
+
+
+class TipoDetalhamento(str, Enum):
+    INSCRICAO_ENCONTREIRO = "INSCRICAO_ENCONTREIRO"
+    INSCRICAO_ENCONTRISTA = "INSCRICAO_ENCONTRISTA"
+    OFERTA = "OFERTA"
+    OUTRO  = "OUTRO"
