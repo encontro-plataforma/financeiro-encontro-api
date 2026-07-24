@@ -18,6 +18,7 @@ from app.routers.auth_router import router as auth_router
 from app.routers.circulo_router import router as circulo_router
 from app.routers.conciliacao_router import router as conciliacao_router
 from app.routers.dashboard_router import router as dashboard_router
+from app.routers.encontreiro_router import router as encontreiro_router
 from app.routers.equipe_router import router as equipe_router
 from app.routers.finalidade_router import router as finalidade_router
 from app.routers.lancamento_router import router as lancamento_router
@@ -90,6 +91,7 @@ app.include_router(relatorio_router, **_protected)
 app.include_router(usuario_router, **_protected)
 app.include_router(equipe_router, **_protected)
 app.include_router(circulo_router, **_protected)
+app.include_router(encontreiro_router, **_protected)
 
 @app.get("/health")
 def health():

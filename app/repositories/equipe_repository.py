@@ -26,6 +26,10 @@ class EquipeRepository:
         return db.query(Equipe).filter(Equipe.id == equipe_id).first()
 
     @staticmethod
+    def get_by_nome(db: Session, nome: str):
+        return db.query(Equipe).filter(Equipe.nome.ilike(nome)).first()
+
+    @staticmethod
     def list_all(db: Session, params):
         query = db.query(Equipe)
         query = _apply_filters(query, params)

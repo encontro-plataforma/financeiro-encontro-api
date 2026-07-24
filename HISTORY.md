@@ -11,6 +11,11 @@
   serviço de upload de arquivos para os próximos módulos; agora registra `error_code`/`error_message`
   quando o processamento de um arquivo falha
 
+### Adicionado
+- Módulo Secretaria: entidade `Encontreiro` com CRUD completo e conciliação via importação de CSV
+  (`POST /encontreiros/conciliacao`), com atualização de cadastros existentes por ID, deduplicação por
+  nome+telefone e validação de equipe
+
 ## [0.0.1] — 2026-07-18
 
 ### Adicionado
