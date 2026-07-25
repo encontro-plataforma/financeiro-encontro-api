@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, File, UploadFile as FastAPIUploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile as FastAPIUploadFile
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -58,5 +58,13 @@ def delete(encontreiro_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/conciliacao")
-def conciliar(file: FastAPIUploadFile = File(...), db: Session = Depends(get_db)):
-    return EncontreiroService.conciliar_csv(file, db)
+def conciliar(
+    background_tasks: BackgroundTasks,
+    file: FastAPIUploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    upload = EncontreiroService.iniciar_conciliacao(file, db)
+    background_tasks.add_task(
+        EncontreiroService.processar_em_background, upload.id, upload.conteudo_csv
+    )
+    return {"upload_id": upload.id, "status": upload.status}

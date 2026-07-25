@@ -1,6 +1,6 @@
 import os
 
-APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
+APP_VERSION = os.getenv("APP_VERSION", "0.2.0")
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",

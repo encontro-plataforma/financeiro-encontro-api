@@ -6,6 +6,12 @@
 - Seed de `Círculo`: `rgb` passa a guardar códigos hexadecimais válidos (antes tinha nomes soltos do
   Google Sheets, incompatíveis com um seletor de cor nativo no frontend)
 
+### Adicionado
+- Conciliação de Encontreiro/Encontrista via CSV passa a ser assíncrona (`BackgroundTasks`): o endpoint
+  responde na hora com o id do upload, o processamento roda em segundo plano, e o resumo final
+  (`resultado_processamento`) fica salvo no `UploadFile` para consulta posterior. `GET /uploads/{id}`
+  agora expõe `status` e `resultado_processamento`
+
 ## [0.1.0] — 2026-07-24
 
 ### Adicionado

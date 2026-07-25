@@ -35,7 +35,14 @@ class UploadFileService:
         return UploadFileRepository.create(db, data)
 
     @staticmethod
-    def update_status(db: Session, upload_id: int, status, error_code: str = None, error_message: str = None):
+    def update_status(
+        db: Session,
+        upload_id: int,
+        status,
+        error_code: str = None,
+        error_message: str = None,
+        resultado_processamento: str = None,
+    ):
         obj = UploadFileRepository.get_by_id(db, upload_id)
 
         if not obj:
@@ -49,6 +56,7 @@ class UploadFileService:
                 "processado_em": datetime.utcnow(),
                 "error_code": error_code,
                 "error_message": error_message,
+                "resultado_processamento": resultado_processamento,
             }
         )
 

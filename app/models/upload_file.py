@@ -22,3 +22,4 @@ class UploadFile(Base):
     status = Column(status_enum, nullable=False, server_default="PROCESSANDO")
     error_code = Column(String(50), nullable=True)
     error_message = Column(String, nullable=True)
+    resultado_processamento = Column(String, nullable=True)

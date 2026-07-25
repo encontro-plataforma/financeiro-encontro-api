@@ -1,12 +1,15 @@
+import json
 import logging
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundException
+from app.database.session import SessionLocal
 from app.integracao.secretaria import encontreiro_parser
 from app.models.encontreiro import Encontreiro
 from app.models.enums import SituacaoCamisa, StatusProcessamento
+from app.models.upload_file import UploadFile
 from app.repositories.encontreiro_repository import EncontreiroRepository
 from app.repositories.equipe_repository import EquipeRepository
 from app.services.auditoria_service import AuditoriaService
@@ -117,7 +120,9 @@ class EncontreiroService:
         }
 
     @staticmethod
-    def conciliar_csv(file, db: Session):
+    def iniciar_conciliacao(file, db: Session) -> UploadFile:
+        """Valida e registra o arquivo (síncrono); o processamento em si roda em
+        background (ver `processar_em_background`)."""
         if not file.filename.endswith(".csv"):
             raise Exception("Arquivo deve ser CSV")
 
@@ -131,12 +136,16 @@ class EncontreiroService:
                 "Erro ao processar arquivo. Utilize o charset UTF-8 para evitar problemas de acentuação."
             )
 
-        upload = UploadFileService.create(db, {
+        return UploadFileService.create(db, {
             "nome_arquivo": file.filename,
             "conteudo_csv": conteudo,
             "tamanho_bytes": len(conteudo.encode('utf-8')),
             "status": StatusProcessamento.PROCESSANDO,
         })
+
+    @staticmethod
+    def processar_em_background(upload_id: int, conteudo: str):
+        db = SessionLocal()
 
         try:
             linhas = encontreiro_parser.parse(conteudo)
@@ -189,11 +198,7 @@ class EncontreiroService:
 
             db.commit()
 
-            UploadFileService.update_status(db, upload.id, StatusProcessamento.PROCESSADO)
-
-            AuditoriaService.processar(db)
-
-            return {
+            resultado = {
                 "inseridos": inseridos,
                 "atualizados": atualizados,
                 "ignorados": len(ignorados),
@@ -204,13 +209,23 @@ class EncontreiroService:
                 ),
             }
 
+            UploadFileService.update_status(
+                db, upload_id, StatusProcessamento.PROCESSADO,
+                resultado_processamento=json.dumps(resultado, ensure_ascii=False),
+            )
+
+            AuditoriaService.processar(db)
+
         except Exception as e:
             db.rollback()
+            logger.exception("Erro ao processar CSV de encontreiros (upload_id=%s)", upload_id)
             UploadFileService.update_status(
                 db,
-                upload.id,
+                upload_id,
                 StatusProcessamento.ERRO,
                 error_code="ERRO_PROCESSAMENTO_ENCONTREIRO",
                 error_message=str(e),
             )
-            raise Exception(f"Erro ao processar arquivo: {str(e)}")
+
+        finally:
+            db.close()
