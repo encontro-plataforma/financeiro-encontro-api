@@ -1,10 +1,17 @@
+import json
+import logging
+
 from sqlalchemy.orm import Session
 
+from app.database.session import SessionLocal
 from app.integracao.conciliacao.conciliador import Conciliador
-from app.services.extrato_bancario_service import ExtratoBancarioService
+from app.models.upload_file import UploadFile
+from app.services.upload_file_service import UploadFileService
 from app.services.lancamento_service import LancamentoService
 from app.models.enums import FormaPagamento, StatusLancamento, StatusProcessamento, TipoLancamento
 from app.utils.hash_utils import gerar_hash
+
+logger = logging.getLogger("uvicorn.error")
 
 # IDs canônicos das finalidades padrão usadas na sugestão automática
 _RECEITA_OFERTA         = 1
@@ -85,7 +92,9 @@ class ConciliacaoService:
         }
 
     @staticmethod
-    def upload_and_process(file, db: Session):
+    def iniciar_conciliacao(file, db: Session) -> UploadFile:
+        """Valida e registra o arquivo (síncrono); o processamento em si roda em
+        background (ver `processar_em_background`)."""
         if not file.filename.endswith(".csv"):
             raise Exception("Arquivo deve ser CSV")
 
@@ -99,12 +108,16 @@ class ConciliacaoService:
                 "Erro ao processar arquivo. Utilize o charset UTF-8 para evitar problemas de acentuação."
             )
 
-        extrato = ExtratoBancarioService.create(db, {
+        return UploadFileService.create(db, {
             "nome_arquivo": file.filename,
             "conteudo_csv": conteudo,
             "tamanho_bytes": len(conteudo.encode('utf-8')),
             "status": StatusProcessamento.PROCESSANDO,
         })
+
+    @staticmethod
+    def processar_em_background(upload_id: int, conteudo: str, nome_arquivo: str):
+        db = SessionLocal()
 
         try:
             def is_duplicado(dto) -> bool:
@@ -113,7 +126,7 @@ class ConciliacaoService:
 
             resultado = Conciliador.processar(
                 conteudo,
-                file.filename,
+                nome_arquivo,
                 is_duplicado,
             )
 
@@ -124,13 +137,7 @@ class ConciliacaoService:
                 except Exception as e:
                     print(f"[DB ERROR] {e}")
 
-            ExtratoBancarioService.update_status(
-                db,
-                extrato.id,
-                StatusProcessamento.PROCESSADO,
-            )
-
-            return {
+            resultado_resumo = {
                 "inseridos": resultado["total_novos"],
                 "duplicados": resultado["total_duplicados"],
                 "erros": resultado["total_erros"],
@@ -140,10 +147,20 @@ class ConciliacaoService:
                 ),
             }
 
-        except Exception as e:
-            ExtratoBancarioService.update_status(
-                db,
-                extrato.id,
-                StatusProcessamento.ERRO,
+            UploadFileService.update_status(
+                db, upload_id, StatusProcessamento.PROCESSADO,
+                resultado_processamento=json.dumps(resultado_resumo, ensure_ascii=False),
             )
-            raise Exception(f"Erro ao processar arquivo: {str(e)}")
+
+        except Exception as e:
+            logger.exception("Erro ao processar extrato bancário (upload_id=%s)", upload_id)
+            UploadFileService.update_status(
+                db,
+                upload_id,
+                StatusProcessamento.ERRO,
+                error_code="ERRO_PROCESSAMENTO_EXTRATO",
+                error_message=str(e),
+            )
+
+        finally:
+            db.close()

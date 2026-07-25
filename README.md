@@ -106,7 +106,7 @@ cp .env.example .env
 |---|---|---|---|
 | `DATABASE_URL` | URL de conexão com o banco | `postgresql://...@localhost:5432/financeiro_encontro` | Sim |
 | `APP_PORT` | Porta em que o servidor sobe | `8000` | Não |
-| `APP_VERSION` | Versão da aplicação exibida no startup e no health check | `0.5.0` | Não |
+| `APP_VERSION` | Versão da aplicação exibida no startup e no health check | `0.2.1` | Não |
 | `JWT_SECRET` | Chave secreta para assinar os tokens | `changeme-insecure-secret` | **Sim em produção** |
 | `JWT_ALGORITHM` | Algoritmo de assinatura JWT | `HS256` | Não |
 | `JWT_EXPIRE_MINUTES` | Expiração do token em minutos | `480` (8 horas) | Não |
@@ -130,7 +130,7 @@ A versão do backend é centralizada em `app/core/config.py` e usada em três po
 - no metadata do FastAPI (`app.version`)
 - no endpoint `GET /health`, que retorna também a versão atual
 
-O valor padrão é `0.0.1`, mas pode ser sobrescrito por meio da variável `APP_VERSION`.
+O valor padrão é `0.2.1`, mas pode ser sobrescrito por meio da variável `APP_VERSION`.
 
 Exemplo:
 

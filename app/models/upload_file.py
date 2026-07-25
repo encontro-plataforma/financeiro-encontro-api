@@ -11,8 +11,8 @@ status_enum = ENUM(
     create_type=True
 )
 
-class ExtratoBancario(Base):
-    __tablename__ = "extratos_bancarios"
+class UploadFile(Base):
+    __tablename__ = "uploads"
 
     id = Column(Integer, primary_key=True)
     nome_arquivo = Column(String(255), nullable=False)
@@ -20,4 +20,6 @@ class ExtratoBancario(Base):
     tamanho_bytes = Column(Integer, nullable=True)
     processado_em = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(status_enum, nullable=False, server_default="PROCESSANDO")
-    
+    error_code = Column(String(50), nullable=True)
+    error_message = Column(String, nullable=True)
+    resultado_processamento = Column(String, nullable=True)

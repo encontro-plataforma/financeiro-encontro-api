@@ -1,5 +1,61 @@
 # Histórico de Versões
 
+## [0.2.1] — 2026-07-25
+
+### Alterado
+- Conciliação de extrato bancário (`POST /conciliacao/upload`) também passa a ser assíncrona
+  (`BackgroundTasks`), no mesmo padrão da conciliação de Encontreiro/Encontrista: responde na hora com
+  `{upload_id, status}` e processa em segundo plano, salvando o resumo em `resultado_processamento`
+
+## [0.2.0] — 2026-07-25
+
+### Corrigido
+- Seed de `Círculo`: `rgb` passa a guardar códigos hexadecimais válidos (antes tinha nomes soltos do
+  Google Sheets, incompatíveis com um seletor de cor nativo no frontend)
+
+### Adicionado
+- Conciliação de Encontreiro/Encontrista via CSV passa a ser assíncrona (`BackgroundTasks`): o endpoint
+  responde na hora com o id do upload, o processamento roda em segundo plano, e o resumo final
+  (`resultado_processamento`) fica salvo no `UploadFile` para consulta posterior. `GET /uploads/{id}`
+  agora expõe `status` e `resultado_processamento`
+- Novos filtros de listagem para Encontreiro (`nome_ou_apelido`, `equipe_ids`, `situacao_camisa`,
+  `auditado`) e Encontrista (`nome_ou_apelido`, `circulo_ids` — com `0` = sem círculo —, `padrinho_id`,
+  `auditado`); as respostas passam a embutir `equipe`/`circulo`/`padrinho`. Novo endpoint
+  `GET /encontristas/padrinhos-disponiveis`
+
+### Alterado
+- `Detalhamento.observacao` renomeado para `descricao` (só usado em `OFERTA`/`OUTRO`). Para inscrições, a
+  "observação" não é mais duplicada/sincronizada — `DetalhamentoResponse` ganha `detalhe_nome` e
+  `observacao_efetiva`, calculados na hora a partir do Encontreiro/Encontrista referenciado.
+  `GET /encontreiros/{id}` e `GET /encontristas/{id}` passam a expor `detalhamento_id` e
+  `lancamento_vinculado`, para a tela poder ligar/trocar/remover o vínculo com um lançamento
+
+## [0.1.0] — 2026-07-24
+
+### Adicionado
+- Módulo Secretaria: entidades `Equipe` e `Círculo` com CRUD completo, seeds padrão e novo perfil de
+  usuário `SECRETARIO`
+
+### Alterado
+- `ExtratoBancario` renomeado para `UploadFile` (tabela `uploads`, rota `/uploads`), generalizando o
+  serviço de upload de arquivos para os próximos módulos; agora registra `error_code`/`error_message`
+  quando o processamento de um arquivo falha
+
+### Adicionado
+- Módulo Secretaria: entidade `Encontreiro` com CRUD completo e conciliação via importação de CSV
+  (`POST /encontreiros/conciliacao`), com atualização de cadastros existentes por ID, deduplicação por
+  nome+telefone e validação de equipe
+- Módulo Secretaria: entidade `Encontrista` com CRUD completo e conciliação via importação de CSV
+  (`POST /encontristas/conciliacao`), vinculada a um Encontreiro padrinho (obrigatório) e a um Círculo
+  (opcional)
+- Módulo Secretaria: entidade `Detalhamento`, ligando um `Lancamento` a uma ou mais inscrições
+  (Encontreiro/Encontrista) ou outra origem (oferta, etc.), com CRUD completo e novo indicador
+  `auditado` em Encontreiro/Encontrista
+- Serviço de auditoria automática (`POST /detalhamentos/auditoria`) que casa inscrições pendentes de
+  pagamento com lançamentos financeiros pela data/valor e interpreta a observação da inscrição para
+  identificar pagamentos combinados (ex.: oferta ou outra inscrição paga no mesmo PIX). É executado
+  automaticamente ao final de cada conciliação de Encontreiro/Encontrista
+
 ## [0.0.1] — 2026-07-18
 
 ### Adicionado

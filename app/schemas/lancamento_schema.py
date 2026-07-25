@@ -35,6 +35,17 @@ class LancamentoUpdate(BaseModel):
     observacao: Optional[str] = None
 
 
+class LancamentoResumo(BaseModel):
+    id: int
+    descricao: str
+    valor: float
+    data_pagamento: datetime
+    status: StatusLancamento
+
+    class Config:
+        from_attributes = True
+
+
 class LancamentoResponse(LancamentoBase):
     id: int
     status: StatusLancamento
