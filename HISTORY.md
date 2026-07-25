@@ -11,6 +11,10 @@
   responde na hora com o id do upload, o processamento roda em segundo plano, e o resumo final
   (`resultado_processamento`) fica salvo no `UploadFile` para consulta posterior. `GET /uploads/{id}`
   agora expõe `status` e `resultado_processamento`
+- Novos filtros de listagem para Encontreiro (`nome_ou_apelido`, `equipe_ids`, `situacao_camisa`,
+  `auditado`) e Encontrista (`nome_ou_apelido`, `circulo_ids` — com `0` = sem círculo —, `padrinho_id`,
+  `auditado`); as respostas passam a embutir `equipe`/`circulo`/`padrinho`. Novo endpoint
+  `GET /encontristas/padrinhos-disponiveis`
 
 ## [0.1.0] — 2026-07-24
 

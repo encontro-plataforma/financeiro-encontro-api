@@ -83,6 +83,10 @@ class EncontristaService:
 
         EncontristaRepository.delete(db, obj)
 
+    @staticmethod
+    def padrinhos_disponiveis(db: Session):
+        return EncontristaRepository.get_padrinhos_disponiveis(db)
+
     # -------------------------------------------------------------------
     # Conciliação via CSV
     # -------------------------------------------------------------------

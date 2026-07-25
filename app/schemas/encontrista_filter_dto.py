@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional
+from typing import List, Optional
 
 from app.schemas.query_params import QueryParams
 
@@ -7,7 +7,11 @@ from app.schemas.query_params import QueryParams
 class EncontristaFilterDto(QueryParams):
     nome: Optional[str] = None
     apelido: Optional[str] = None
+    nome_ou_apelido: Optional[str] = None
     circulo_nome: Optional[str] = None
+    circulo_ids: Optional[List[int]] = None  # 0 = "sem círculo" (circulo_id IS NULL)
+    padrinho_id: Optional[int] = None
+    auditado: Optional[bool] = None
     camisa: Optional[str] = None
     blusa: Optional[bool] = None
     carta: Optional[bool] = None

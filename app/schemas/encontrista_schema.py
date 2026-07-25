@@ -4,12 +4,23 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from app.schemas.circulo_schema import CirculoResponse
+
+
+class PadrinhoResumo(BaseModel):
+    id: int
+    nome: str
+
+    class Config:
+        from_attributes = True
+
 
 class EncontristaResponse(BaseModel):
     id: int
     dt_entrega: Optional[date]
     dt_validade: Optional[date]
     padrinho_id: int
+    padrinho: Optional[PadrinhoResumo]
     carta: bool
     album: bool
     nome: str
@@ -17,6 +28,7 @@ class EncontristaResponse(BaseModel):
     dt_nascimento: Optional[date]
     idade: Optional[int]
     circulo_id: Optional[int]
+    circulo: Optional[CirculoResponse]
     instagram: Optional[str]
     contato: Optional[str]
     religiao: Optional[str]

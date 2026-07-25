@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile as FastAPIUploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, UploadFile as FastAPIUploadFile
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -9,6 +9,7 @@ from app.schemas.encontrista_schema import (
     EncontristaCreate,
     EncontristaResponse,
     EncontristaUpdate,
+    PadrinhoResumo,
 )
 from app.schemas.pagination_schema import Page
 from app.services.encontrista_service import EncontristaService
@@ -19,17 +20,26 @@ router = APIRouter(prefix="/encontristas", tags=["Secretaria - Encontristas"])
 @router.get("/", response_model=Page[EncontristaResponse])
 def list_encontristas(
     params: EncontristaFilterDto = Depends(),
+    circulo_ids: Optional[List[int]] = Query(default=None),
     db: Session = Depends(get_db),
 ):
+    params.circulo_ids = circulo_ids
     return EncontristaService.list(db, params)
 
 
 @router.get("/all", response_model=List[EncontristaResponse])
 def list_all(
     params: EncontristaFilterDto = Depends(),
+    circulo_ids: Optional[List[int]] = Query(default=None),
     db: Session = Depends(get_db),
 ):
+    params.circulo_ids = circulo_ids
     return EncontristaService.list_all(db, params)
+
+
+@router.get("/padrinhos-disponiveis", response_model=List[PadrinhoResumo])
+def padrinhos_disponiveis(db: Session = Depends(get_db)):
+    return EncontristaService.padrinhos_disponiveis(db)
 
 
 @router.get("/{encontrista_id}", response_model=EncontristaResponse)

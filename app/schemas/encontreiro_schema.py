@@ -5,6 +5,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 from app.models.enums import SituacaoCamisa
+from app.schemas.equipe_schema import EquipeResponse
 
 
 class EncontreiroResponse(BaseModel):
@@ -22,6 +23,7 @@ class EncontreiroResponse(BaseModel):
     parentesco_emerg: Optional[str]
     alergia_comorbidade: Optional[str]
     equipe_id: Optional[int]
+    equipe: Optional[EquipeResponse]
     camisa: Optional[str]
     situacao_camisa: SituacaoCamisa
     veiculo: Optional[str]

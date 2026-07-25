@@ -1,9 +1,10 @@
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile as FastAPIUploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, UploadFile as FastAPIUploadFile
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
+from app.models.enums import SituacaoCamisa
 from app.schemas.encontreiro_filter_dto import EncontreiroFilterDto
 from app.schemas.encontreiro_schema import (
     EncontreiroCreate,
@@ -19,16 +20,24 @@ router = APIRouter(prefix="/encontreiros", tags=["Secretaria - Encontreiros"])
 @router.get("/", response_model=Page[EncontreiroResponse])
 def list_encontreiros(
     params: EncontreiroFilterDto = Depends(),
+    equipe_ids: Optional[List[int]] = Query(default=None),
+    situacao_camisa: Optional[List[SituacaoCamisa]] = Query(default=None),
     db: Session = Depends(get_db),
 ):
+    params.equipe_ids = equipe_ids
+    params.situacao_camisa = situacao_camisa
     return EncontreiroService.list(db, params)
 
 
 @router.get("/all", response_model=List[EncontreiroResponse])
 def list_all(
     params: EncontreiroFilterDto = Depends(),
+    equipe_ids: Optional[List[int]] = Query(default=None),
+    situacao_camisa: Optional[List[SituacaoCamisa]] = Query(default=None),
     db: Session = Depends(get_db),
 ):
+    params.equipe_ids = equipe_ids
+    params.situacao_camisa = situacao_camisa
     return EncontreiroService.list_all(db, params)
 
 
