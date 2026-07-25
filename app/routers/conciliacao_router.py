@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Depends
+from fastapi import APIRouter, BackgroundTasks, UploadFile, File, Depends
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -8,5 +8,16 @@ router = APIRouter(prefix="/conciliacao", tags=["Conciliação"])
 
 
 @router.post("/upload")
-def upload(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    return ConciliacaoService.upload_and_process(file, db)
+def upload(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    upload_obj = ConciliacaoService.iniciar_conciliacao(file, db)
+    background_tasks.add_task(
+        ConciliacaoService.processar_em_background,
+        upload_obj.id,
+        upload_obj.conteudo_csv,
+        upload_obj.nome_arquivo,
+    )
+    return {"upload_id": upload_obj.id, "status": upload_obj.status}

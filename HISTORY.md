@@ -1,5 +1,12 @@
 # Histórico de Versões
 
+## [0.2.1] — 2026-07-25
+
+### Alterado
+- Conciliação de extrato bancário (`POST /conciliacao/upload`) também passa a ser assíncrona
+  (`BackgroundTasks`), no mesmo padrão da conciliação de Encontreiro/Encontrista: responde na hora com
+  `{upload_id, status}` e processa em segundo plano, salvando o resumo em `resultado_processamento`
+
 ## [0.2.0] — 2026-07-25
 
 ### Corrigido
