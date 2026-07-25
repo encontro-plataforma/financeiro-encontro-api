@@ -5,6 +5,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 from app.schemas.circulo_schema import CirculoResponse
+from app.schemas.lancamento_schema import LancamentoResumo
 
 
 class PadrinhoResumo(BaseModel):
@@ -49,6 +50,8 @@ class EncontristaResponse(BaseModel):
     observacao: Optional[str]
     criado_em: datetime
     auditado: bool
+    detalhamento_id: Optional[int] = None
+    lancamento_vinculado: Optional[LancamentoResumo] = None
 
     class Config:
         from_attributes = True

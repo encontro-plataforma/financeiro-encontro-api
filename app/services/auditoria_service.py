@@ -130,7 +130,7 @@ def _processar_observacao(db: Session, lancamento: Lancamento, observacao: Optio
                     tipo=TipoDetalhamento.OFERTA,
                     referencia_id=None,
                     valor=valor,
-                    observacao=f"R$ {valor:.2f} em oferta",
+                    descricao=f"R$ {valor:.2f} em oferta",
                 ))
                 db.flush()
 
@@ -164,7 +164,6 @@ def _processar_observacao(db: Session, lancamento: Lancamento, observacao: Optio
             tipo=tipo,
             referencia_id=pessoa.id,
             valor=valor_pessoa,
-            observacao="",
         ))
         db.flush()
 
@@ -203,7 +202,6 @@ def _processar_pendentes(db: Session, modelo, tipo_principal: TipoDetalhamento):
             tipo=tipo_principal,
             referencia_id=pessoa.id,
             valor=pessoa.pagamento,
-            observacao="",
         ))
         db.flush()
         vinculados += 1

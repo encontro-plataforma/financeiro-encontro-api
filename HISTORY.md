@@ -16,6 +16,13 @@
   `auditado`); as respostas passam a embutir `equipe`/`circulo`/`padrinho`. Novo endpoint
   `GET /encontristas/padrinhos-disponiveis`
 
+### Alterado
+- `Detalhamento.observacao` renomeado para `descricao` (só usado em `OFERTA`/`OUTRO`). Para inscrições, a
+  "observação" não é mais duplicada/sincronizada — `DetalhamentoResponse` ganha `detalhe_nome` e
+  `observacao_efetiva`, calculados na hora a partir do Encontreiro/Encontrista referenciado.
+  `GET /encontreiros/{id}` e `GET /encontristas/{id}` passam a expor `detalhamento_id` e
+  `lancamento_vinculado`, para a tela poder ligar/trocar/remover o vínculo com um lançamento
+
 ## [0.1.0] — 2026-07-24
 
 ### Adicionado

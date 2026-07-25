@@ -19,7 +19,10 @@ class Detalhamento(Base):
     tipo = Column(tipo_detalhamento_enum, nullable=False)
     referencia_id = Column(Integer, nullable=True, index=True)
     valor = Column(Numeric(10, 2), nullable=False)
-    observacao = Column(String(500), nullable=False, server_default="")
+    # Só usado quando tipo é OFERTA/OUTRO. Para INSCRICAO_*, a "observação"
+    # mostrada vem ao vivo do Encontreiro/Encontrista referenciado (sem
+    # duplicar/sincronizar texto) — ver DetalhamentoService/AuditoriaService.
+    descricao = Column(String(500), nullable=False, server_default="")
     criado_em = Column(DateTime(timezone=True), server_default=func.now())
     atualizado_em = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

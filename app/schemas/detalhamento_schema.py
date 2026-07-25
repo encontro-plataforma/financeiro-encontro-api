@@ -13,7 +13,13 @@ class DetalhamentoResponse(BaseModel):
     tipo: TipoDetalhamento
     referencia_id: Optional[int]
     valor: Decimal
-    observacao: str
+    descricao: str
+    # Calculados na serialização (ver DetalhamentoService): nome de quem foi
+    # detalhado (ou "OFERTA"/"OUTRO") e o texto de observação efetivo — pra
+    # inscrições, vem ao vivo do Encontreiro/Encontrista referenciado; pra
+    # oferta/outro, é o próprio `descricao`.
+    detalhe_nome: str = ""
+    observacao_efetiva: str = ""
     criado_em: datetime
 
     class Config:
@@ -25,7 +31,7 @@ class DetalhamentoCreate(BaseModel):
     tipo: TipoDetalhamento
     referencia_id: Optional[int] = None
     valor: Decimal
-    observacao: str = ""
+    descricao: str = ""
 
 
 class DetalhamentoUpdate(BaseModel):
@@ -33,4 +39,4 @@ class DetalhamentoUpdate(BaseModel):
     tipo: Optional[TipoDetalhamento] = None
     referencia_id: Optional[int] = None
     valor: Optional[Decimal] = None
-    observacao: Optional[str] = None
+    descricao: Optional[str] = None
