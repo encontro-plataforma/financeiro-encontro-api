@@ -11,7 +11,7 @@ SORT_FIELDS = {
     "dt_nascimento": Encontrista.dt_nascimento,
 }
 
-DEFAULT_SORT = "nome:asc"
+DEFAULT_SORT = "id:asc"
 
 
 def _apply_filters(query, params):

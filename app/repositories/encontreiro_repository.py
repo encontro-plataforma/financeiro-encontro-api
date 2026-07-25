@@ -10,7 +10,7 @@ SORT_FIELDS = {
     "dt_inscricao": Encontreiro.dt_inscricao,
 }
 
-DEFAULT_SORT = "nome:asc"
+DEFAULT_SORT = "id:asc"
 
 
 def _apply_filters(query, params):
