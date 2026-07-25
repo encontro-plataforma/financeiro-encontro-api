@@ -1,5 +1,11 @@
 # Histórico de Versões
 
+## [0.2.0] — 2026-07-25
+
+### Corrigido
+- Seed de `Círculo`: `rgb` passa a guardar códigos hexadecimais válidos (antes tinha nomes soltos do
+  Google Sheets, incompatíveis com um seletor de cor nativo no frontend)
+
 ## [0.1.0] — 2026-07-24
 
 ### Adicionado
