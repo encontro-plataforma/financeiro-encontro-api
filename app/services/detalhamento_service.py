@@ -1,6 +1,10 @@
+from decimal import Decimal
+
 from sqlalchemy.orm import Session
 from app.repositories.detalhamento_repository import DetalhamentoRepository
-from app.core.exceptions import NotFoundException
+from app.repositories.lancamento_repository import LancamentoRepository
+from app.core.exceptions import BadRequestException, NotFoundException
+from app.models.detalhamento import Detalhamento
 from app.models.enums import TipoDetalhamento
 from app.repositories.encontreiro_repository import EncontreiroRepository
 from app.repositories.encontrista_repository import EncontristaRepository
@@ -9,6 +13,8 @@ _ROTULO_POR_TIPO = {
     TipoDetalhamento.OFERTA: "OFERTA",
     TipoDetalhamento.OUTRO: "OUTRO",
 }
+
+_TOLERANCIA = Decimal("0.01")
 
 
 class DetalhamentoService:
@@ -58,7 +64,29 @@ class DetalhamentoService:
         return DetalhamentoService._enriquecer(db, obj)
 
     @staticmethod
+    def _validar_soma(db: Session, lancamento_id: int, novo_valor, excluir_id: int = None):
+        lancamento = LancamentoRepository.get_by_id(db, lancamento_id)
+        if not lancamento:
+            return  # FK constraint cuida do erro de integridade; fora de escopo aqui
+
+        existentes = (
+            db.query(Detalhamento)
+            .filter(Detalhamento.lancamento_id == lancamento_id)
+            .all()
+        )
+        soma_outros = sum((d.valor for d in existentes if d.id != excluir_id), Decimal("0"))
+        resto = Decimal(str(lancamento.valor)) - soma_outros
+        valor_decimal = Decimal(str(novo_valor))
+
+        if valor_decimal > resto + _TOLERANCIA:
+            raise BadRequestException(
+                f"Não é possível incluir um detalhamento de R$ {valor_decimal:.2f}: "
+                f"este lançamento tem apenas R$ {resto:.2f} ainda não vinculado."
+            )
+
+    @staticmethod
     def create(db: Session, data: dict):
+        DetalhamentoService._validar_soma(db, data["lancamento_id"], data["valor"])
         obj = DetalhamentoRepository.create(db, data)
         return DetalhamentoService._enriquecer(db, obj)
 
@@ -68,6 +96,10 @@ class DetalhamentoService:
 
         if not obj:
             raise NotFoundException("Detalhamento")
+
+        lancamento_id = data.get("lancamento_id", obj.lancamento_id)
+        novo_valor = data.get("valor", obj.valor)
+        DetalhamentoService._validar_soma(db, lancamento_id, novo_valor, excluir_id=detalhamento_id)
 
         obj = DetalhamentoRepository.update(db, obj, data)
         return DetalhamentoService._enriquecer(db, obj)

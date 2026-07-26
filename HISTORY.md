@@ -1,5 +1,14 @@
 # Histórico de Versões
 
+## [0.3.1] — 2026-07-26
+
+### Corrigido
+- `POST /detalhamentos` e `PUT /detalhamentos/{id}` passam a validar que a soma dos valores dos
+  Detalhamentos vinculados a um lançamento não ultrapasse o valor desse lançamento — retorna 400 com a
+  mensagem informando quanto ainda resta disponível. Cobre também o caminho de "trocar lançamento" do
+  vínculo em Encontreiro/Encontrista (`VinculoLancamentoComponent.trocar`), que reatribui um Detalhamento
+  existente a outro `lancamento_id`
+
 ## [0.3.0] — 2026-07-25
 
 ### Adicionado
