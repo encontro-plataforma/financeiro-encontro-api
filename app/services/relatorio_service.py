@@ -28,9 +28,8 @@ _COR_TOTAL_COL = colors.HexColor("#e0e0e0")
 _COR_TOTAL_ROW = colors.HexColor("#bdbdbd")
 
 _RESUMO_RECEITA_ROWS = [
-    ("Encontristas", frozenset([3])),
-    ("Encontreiros", frozenset([4])),
-    ("Outros",       frozenset([1, 2, 5])),
+    ("Inscrições", frozenset([3])),
+    ("Outros",     frozenset([1, 2, 5])),
 ]
 
 _RESUMO_DESPESA_ROWS = [

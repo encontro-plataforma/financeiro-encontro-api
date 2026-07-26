@@ -8,8 +8,12 @@ Este serviço fornece uma API REST para controle de:
 - Formas de pagamento (PIX, dinheiro, cartão)
 - Finalidades (oferta, campanha, inscrição)
 - Importação e conciliação de extratos bancários via CSV
+- Secretaria: cadastro de Encontreiros/Encontristas (via CSV), Equipes e Círculos
+- Detalhamentos: vínculo entre um lançamento de RECEITA e uma ou mais inscrições (ou oferta/outros
+  valores), com auditoria manual (`POST /detalhamentos/auditoria`) para casar pagamentos pendentes
+  automaticamente
 - Geração de relatórios PDF (Livro Caixa e Resumo Geral)
-- CRUD de usuários com perfis de acesso (ADMINISTRADOR, CONCILIADOR, REPORTER)
+- CRUD de usuários com perfis de acesso (ADMINISTRADOR, CONCILIADOR, REPORTER, SECRETARIO)
 
 ---
 
@@ -106,7 +110,7 @@ cp .env.example .env
 |---|---|---|---|
 | `DATABASE_URL` | URL de conexão com o banco | `postgresql://...@localhost:5432/financeiro_encontro` | Sim |
 | `APP_PORT` | Porta em que o servidor sobe | `8000` | Não |
-| `APP_VERSION` | Versão da aplicação exibida no startup e no health check | `0.2.1` | Não |
+| `APP_VERSION` | Versão da aplicação exibida no startup e no health check | `0.3.0` | Não |
 | `JWT_SECRET` | Chave secreta para assinar os tokens | `changeme-insecure-secret` | **Sim em produção** |
 | `JWT_ALGORITHM` | Algoritmo de assinatura JWT | `HS256` | Não |
 | `JWT_EXPIRE_MINUTES` | Expiração do token em minutos | `480` (8 horas) | Não |
@@ -130,7 +134,7 @@ A versão do backend é centralizada em `app/core/config.py` e usada em três po
 - no metadata do FastAPI (`app.version`)
 - no endpoint `GET /health`, que retorna também a versão atual
 
-O valor padrão é `0.2.1`, mas pode ser sobrescrito por meio da variável `APP_VERSION`.
+O valor padrão é `0.3.0`, mas pode ser sobrescrito por meio da variável `APP_VERSION`.
 
 Exemplo:
 
@@ -178,6 +182,7 @@ O campo `perfil` do usuário controla o que cada um pode ver e fazer.
 | `ADMINISTRADOR` | Acesso total — lançamentos, conciliação, arquivos, finalidades, usuários e relatórios |
 | `CONCILIADOR` | Acesso financeiro — lançamentos, conciliação e arquivos. Sem telas de administração |
 | `REPORTER` | Somente Dashboard (sem navegar para lançamentos) e Relatórios |
+| `SECRETARIO` | Módulo Secretaria — Encontreiros, Encontristas, Equipes e Círculos |
 
 Regras de negócio no CRUD de usuários:
 - O usuário de ID `1` (administrador principal) **nunca pode ser excluído**
@@ -198,17 +203,37 @@ Regras de negócio no CRUD de usuários:
 | POST | `/lancamentos/` | Criar lançamento |
 | PUT | `/lancamentos/{id}` | Atualizar lançamento |
 | DELETE | `/lancamentos/{id}` | Excluir lançamento |
-| PATCH | `/lancamentos/conciliar-lancamento/{id}?idFinalidade={id}` | Conciliar manualmente um lançamento |
+| PATCH | `/lancamentos/conciliar/{lancamento_id}/finalidade/{finalidade_id}` | Conciliar manualmente um lançamento |
 
 **Filtros disponíveis no GET `/lancamentos/`:**
 - `data_inicio` / `data_fim` — intervalo de data de pagamento
 - `status` — `CONCILIADO` ou `NAO_CONCILIADO`
 - `tipo` — `RECEITA` ou `DESPESA`
-- `finalidade_id` — ID de uma finalidade específica
+- `finalidade_id` / `finalidade_ids[]` — uma finalidade ou uma lista de finalidades
 - `forma_pagamento[]` — `PIX`, `DINHEIRO`, `CARTAO_CREDITO`, `CARTAO_DEBITO`
 - `descricao` — busca parcial na descrição
+- `exclude_ids[]` — exclui IDs já carregados (usado na paginação incremental da tela de Conciliação)
 - `skip` / `limit` — paginação
 - `sort` — ordenação (ex: `data_pagamento:desc`)
+
+**Corpo do `PATCH /lancamentos/conciliar/{lancamento_id}/finalidade/{finalidade_id}`** (todos os campos opcionais):
+
+```json
+{
+  "observacao": "texto livre, sobrescreve a observação do lançamento",
+  "detalhamento_final": { "descricao": "Oferta" }
+}
+```
+
+Para lançamentos de RECEITA, o backend valida antes de conciliar: a soma dos `Detalhamento`s vinculados
+não pode ultrapassar o valor do lançamento, e se a finalidade escolhida for "INSCRIÇÃO" é obrigatório já
+existir ao menos um Detalhamento de inscrição vinculado. Se sobrar valor (`valor do lançamento - soma dos
+detalhamentos > 0`) e `detalhamento_final` for enviado, um Detalhamento extra é criado automaticamente
+(`OFERTA` se a finalidade for "OFERTA", senão `OUTRO`) com esse valor. Lançamentos de DESPESA não têm
+Detalhamentos — a conciliação apenas define a finalidade e o status.
+
+`LancamentoResponse` também expõe `quantidade_detalhamentos` e `soma_detalhamentos` (calculados, sem
+necessidade de consultar `/detalhamentos` separadamente).
 
 ---
 
@@ -229,18 +254,116 @@ Regras de negócio no CRUD de usuários:
 
 ---
 
-### Extratos Bancários `/extratos-bancarios`
+### Uploads (extratos/CSVs) `/uploads`
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/extratos-bancarios/` | Listar com paginação e filtros |
-| GET | `/extratos-bancarios/all` | Listar todos sem paginação |
-| GET | `/extratos-bancarios/{id}` | Buscar por ID |
-| DELETE | `/extratos-bancarios/{id}` | Excluir extrato |
+| GET | `/uploads/` | Listar com paginação e filtros |
+| GET | `/uploads/all` | Listar todos sem paginação |
+| GET | `/uploads/{id}` | Buscar por ID (inclui `status` e `resultado_processamento`) |
+| GET | `/uploads/{id}/download` | Baixar o CSV original enviado |
+| DELETE | `/uploads/{id}` | Excluir upload |
 
 **Filtros disponíveis:**
 - `nome_arquivo` — filtro por nome do arquivo
 - `processado_em_inicio` / `processado_em_fim` — intervalo de data de processamento
+
+Usado tanto para extratos bancários (`/conciliacao/upload`) quanto para os CSVs de Encontreiro/Encontrista
+(`/encontreiros/conciliacao`, `/encontristas/conciliacao`) — todos processados de forma assíncrona
+(`status`: `PROCESSANDO` → `PROCESSADO`/`ERRO`).
+
+---
+
+### Secretaria — Encontreiros `/encontreiros`
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/encontreiros/` | Listar com paginação e filtros |
+| GET | `/encontreiros/all` | Listar todos sem paginação |
+| GET | `/encontreiros/{id}` | Buscar por ID (inclui `auditado`, `detalhamento_id`, `lancamento_vinculado`) |
+| POST | `/encontreiros/` | Criar encontreiro |
+| PUT | `/encontreiros/{id}` | Atualizar encontreiro |
+| DELETE | `/encontreiros/{id}` | Excluir encontreiro |
+| POST | `/encontreiros/conciliacao` | Upload de CSV (assíncrono) — cria/atualiza registros e roda a auditoria ao final |
+
+**Filtros disponíveis no GET `/encontreiros/`:**
+- `nome` / `apelido` / `nome_ou_apelido` — busca parcial
+- `equipe_nome` / `equipe_acesso` / `equipe_ids[]`
+- `situacao_camisa[]` — `PENDENTE`, `SOLICITADA`, `RECEBIDA`, `ENTREGUE`, `SEM_BLUSA`
+- `auditado` — `true`/`false` (já foi vinculado a um lançamento via Detalhamento)
+- `dt_inscricao_inicio` / `dt_inscricao_fim`
+
+---
+
+### Secretaria — Encontristas `/encontristas`
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/encontristas/` | Listar com paginação e filtros |
+| GET | `/encontristas/all` | Listar todos sem paginação |
+| GET | `/encontristas/padrinhos-disponiveis` | Lista de Encontreiros elegíveis como padrinho |
+| GET | `/encontristas/{id}` | Buscar por ID (inclui `auditado`, `detalhamento_id`, `lancamento_vinculado`) |
+| POST | `/encontristas/` | Criar encontrista |
+| PUT | `/encontristas/{id}` | Atualizar encontrista |
+| DELETE | `/encontristas/{id}` | Excluir encontrista |
+| POST | `/encontristas/conciliacao` | Upload de CSV (assíncrono) — cria/atualiza registros e roda a auditoria ao final |
+
+**Filtros disponíveis no GET `/encontristas/`:**
+- `nome` / `apelido` / `nome_ou_apelido` — busca parcial
+- `circulo_nome` / `circulo_ids[]` (`0` = sem círculo) / `padrinho_id`
+- `auditado` — `true`/`false`
+- `camisa` / `blusa` / `carta` / `album`
+- `dt_entrega_inicio` / `dt_entrega_fim`, `dt_nascimento_inicio` / `dt_nascimento_fim`
+
+---
+
+### Secretaria — Equipes `/equipes`
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/equipes/` | Listar com paginação e filtros |
+| GET | `/equipes/all` | Listar todas sem paginação |
+| GET | `/equipes/{id}` | Buscar por ID |
+| POST | `/equipes/` | Criar equipe |
+| PUT | `/equipes/{id}` | Atualizar equipe |
+| DELETE | `/equipes/{id}` | Excluir equipe |
+
+---
+
+### Secretaria — Círculos `/circulos`
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/circulos/` | Listar com paginação e filtros |
+| GET | `/circulos/all` | Listar todos sem paginação |
+| GET | `/circulos/{id}` | Buscar por ID |
+| POST | `/circulos/` | Criar círculo |
+| PUT | `/circulos/{id}` | Atualizar círculo |
+| DELETE | `/circulos/{id}` | Excluir círculo |
+
+---
+
+### Detalhamentos `/detalhamentos`
+
+Um `Detalhamento` liga parte do valor de um `Lancamento` de RECEITA a uma inscrição de
+Encontreiro/Encontrista, ou marca esse valor como `OFERTA`/`OUTRO`. Lançamentos de DESPESA não têm
+Detalhamentos.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/detalhamentos/` | Listar com paginação e filtros |
+| GET | `/detalhamentos/all` | Listar todos sem paginação |
+| GET | `/detalhamentos/{id}` | Buscar por ID |
+| POST | `/detalhamentos/` | Criar detalhamento |
+| PUT | `/detalhamentos/{id}` | Atualizar detalhamento |
+| DELETE | `/detalhamentos/{id}` | Excluir detalhamento (a inscrição volta a ficar pendente de auditoria) |
+| POST | `/detalhamentos/auditoria` | Roda a auditoria manualmente: tenta casar todo Encontreiro/Encontrista pendente (`auditado=false`, com pagamento e data registrados) a um lançamento de RECEITA compatível |
+
+**Filtros disponíveis no GET `/detalhamentos/`:**
+- `lancamento_id` / `tipo` (`INSCRICAO_ENCONTREIRO`, `INSCRICAO_ENCONTRISTA`, `OFERTA`, `OUTRO`) / `referencia_id`
+
+`DetalhamentoResponse` inclui `detalhe_nome` (nome da pessoa ou o label do tipo) e `observacao_efetiva`
+(para inscrições, vem ao vivo da observação do Encontreiro/Encontrista referenciado).
 
 ---
 
@@ -280,7 +403,7 @@ Regras de negócio no CRUD de usuários:
 | PUT | `/usuarios/{id}` | Atualizar usuário |
 | DELETE | `/usuarios/{id}` | Excluir usuário (restrições: id=1 e self) |
 
-**Campos:** `nome`, `email`, `senha` (hash bcrypt), `ativo`, `perfil` (`ADMINISTRADOR` \| `CONCILIADOR` \| `REPORTER`).
+**Campos:** `nome`, `email`, `senha` (hash bcrypt), `ativo`, `perfil` (`ADMINISTRADOR` \| `CONCILIADOR` \| `REPORTER` \| `SECRETARIO`).
 
 ---
 
@@ -299,12 +422,14 @@ Regras de negócio no CRUD de usuários:
 
 ## Fluxo de Conciliação via CSV
 
-1. Upload de CSV (formato Banco Inter) via `POST /conciliacao/upload`
-2. Backend valida e processa o arquivo
+1. Upload de CSV (formato Banco Inter) via `POST /conciliacao/upload` — responde na hora com `{upload_id, status}` e processa em segundo plano
+2. Backend valida e processa o arquivo (`GET /uploads/{upload_id}` para acompanhar o `status` e o resumo)
 3. Cria lançamentos automaticamente como `NAO_CONCILIADO`
-4. Aplica sugestão automática de finalidade por palavras-chave
+4. Aplica sugestão automática de finalidade por palavras-chave/valor (`sugestao_finalidade_id`)
 5. Retorna relatório com totais de inseridos, duplicados e erros
-6. Usuário concilia manualmente via `PATCH /lancamentos/conciliar-lancamento/{id}`
+6. Para lançamentos de RECEITA, o usuário pode rodar `POST /detalhamentos/auditoria` para tentar vincular
+   automaticamente inscrições de Encontreiro/Encontrista pendentes (ver seção Detalhamentos)
+7. Usuário concilia manualmente via `PATCH /lancamentos/conciliar/{lancamento_id}/finalidade/{finalidade_id}`
 
 ### Deduplicação
 

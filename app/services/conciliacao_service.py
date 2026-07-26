@@ -16,8 +16,7 @@ logger = logging.getLogger("uvicorn.error")
 # IDs canônicos das finalidades padrão usadas na sugestão automática
 _RECEITA_OFERTA         = 1
 _RECEITA_CAMPANHA       = 2
-_RECEITA_INSCRICAO_ENCA = 3
-_RECEITA_INSCRICAO_ENCO = 4
+_RECEITA_INSCRICAO      = 3
 _RECEITA_OUTROS         = 5
 
 _DESPESA_CAMISAS        = 101
@@ -31,9 +30,9 @@ class ConciliacaoService:
     def _sugerir_finalidade_receita(dto) -> int:
         """Sugere a finalidade de RECEITA com base no valor do lançamento."""
         if dto.valor == 120:
-            return _RECEITA_INSCRICAO_ENCO
+            return _RECEITA_INSCRICAO
         if 200 <= dto.valor <= 220:
-            return _RECEITA_INSCRICAO_ENCA
+            return _RECEITA_INSCRICAO
         if 10 <= dto.valor <= 50:
             return _RECEITA_CAMPANHA
         if dto.valor > 50:
