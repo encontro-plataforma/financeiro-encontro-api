@@ -80,4 +80,5 @@ def conciliar_lancamento(
     db: Session = Depends(get_db),
 ):
     observacao = data.observacao if data else None
-    return LancamentoService.conciliar(db, lancamento_id, finalidade_id, observacao)
+    detalhamento_final = data.detalhamento_final if data else None
+    return LancamentoService.conciliar(db, lancamento_id, finalidade_id, observacao, detalhamento_final)

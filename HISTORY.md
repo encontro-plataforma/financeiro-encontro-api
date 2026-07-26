@@ -1,5 +1,24 @@
 # Histórico de Versões
 
+## [0.3.0] — 2026-07-25
+
+### Adicionado
+- `PATCH /lancamentos/conciliar/{id}/finalidade/{finalidade_id}` passa a aceitar `detalhamento_final`
+  (`{descricao}`) no corpo: quando o valor do lançamento é maior que a soma dos `Detalhamento`s já
+  vinculados, cria automaticamente um Detalhamento de sobra (`OFERTA` ou `OUTRO`, conforme a finalidade)
+  com esse valor, na mesma transação que concilia o lançamento
+- `Lancamento` ganha os campos computados `quantidade_detalhamentos` e `soma_detalhamentos` (mesmo padrão
+  do `auditado` em Encontreiro/Encontrista), expostos em `LancamentoResponse` para evitar N+1 chamadas ao
+  montar a tela de conciliação
+
+### Alterado
+- Finalidades "INSCRIÇÃO ENCONTRISTA" (id 3) e "INSCRIÇÃO ENCONTREIRO" (id 4) unificadas em uma única
+  finalidade "INSCRIÇÃO" (id 3) — migration atualiza os lançamentos existentes e remove o id 4
+- `PATCH /lancamentos/conciliar/...` para lançamentos de RECEITA agora valida, antes de conciliar: (1) a
+  soma dos Detalhamentos vinculados não pode ultrapassar o valor do lançamento; (2) se a finalidade for
+  "INSCRIÇÃO", é obrigatório já existir ao menos um Detalhamento de inscrição (Encontreiro ou Encontrista)
+  vinculado
+
 ## [0.2.1] — 2026-07-25
 
 ### Alterado

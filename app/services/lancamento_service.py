@@ -1,11 +1,17 @@
+from decimal import Decimal
+
 from sqlalchemy.orm import Session
 
 from app.repositories.lancamento_repository import LancamentoRepository
-from app.schemas.lancamento_schema import LancamentoCreate, LancamentoUpdate
-from app.models.enums import StatusLancamento
+from app.schemas.lancamento_schema import DetalhamentoFinalDto, LancamentoCreate, LancamentoUpdate
+from app.models.enums import StatusLancamento, TipoDetalhamento, TipoLancamento
 from app.core.exceptions import NotFoundException, BadRequestException
+from app.models.detalhamento import Detalhamento
 from app.models.lancamento import Lancamento
 from app.utils.hash_utils import gerar_hash
+
+_TOLERANCIA = Decimal("0.01")
+_TIPOS_INSCRICAO = (TipoDetalhamento.INSCRICAO_ENCONTREIRO, TipoDetalhamento.INSCRICAO_ENCONTRISTA)
 
 
 class LancamentoService:
@@ -80,14 +86,52 @@ class LancamentoService:
         )
 
     @staticmethod
-    def conciliar(db: Session, lancamento_id: int, finalidade_id: int, observacao: str | None = None):
+    def conciliar(
+        db: Session,
+        lancamento_id: int,
+        finalidade_id: int,
+        observacao: str | None = None,
+        detalhamento_final: DetalhamentoFinalDto | None = None,
+    ):
         from app.services.finalidade_service import FinalidadeService
         try:
             obj = LancamentoRepository.get_by_id(db, lancamento_id)
             if not obj:
                 raise NotFoundException("Lançamento")
 
-            FinalidadeService.get_by_id(db, finalidade_id)
+            finalidade = FinalidadeService.get_by_id(db, finalidade_id)
+
+            if obj.tipo == TipoLancamento.RECEITA:
+                detalhamentos = (
+                    db.query(Detalhamento)
+                    .filter(Detalhamento.lancamento_id == lancamento_id)
+                    .all()
+                )
+                soma = sum((d.valor for d in detalhamentos), Decimal("0"))
+                valor = Decimal(str(obj.valor))
+                resto = valor - soma
+
+                if resto < -_TOLERANCIA:
+                    raise BadRequestException(
+                        "A soma dos detalhamentos é maior que o valor do lançamento. "
+                        "Revise antes de conciliar."
+                    )
+
+                if finalidade.nome == "INSCRIÇÃO" and not any(d.tipo in _TIPOS_INSCRICAO for d in detalhamentos):
+                    raise BadRequestException(
+                        "Esta finalidade exige que ao menos uma inscrição seja vinculada "
+                        "antes de conciliar este lançamento."
+                    )
+
+                if resto > _TOLERANCIA and detalhamento_final:
+                    tipo_resto = TipoDetalhamento.OFERTA if finalidade.nome == "OFERTA" else TipoDetalhamento.OUTRO
+                    db.add(Detalhamento(
+                        lancamento_id=lancamento_id,
+                        tipo=tipo_resto,
+                        referencia_id=None,
+                        valor=resto,
+                        descricao=detalhamento_final.descricao,
+                    ))
 
             obj.finalidade_id = finalidade_id
             obj.status = StatusLancamento.CONCILIADO
@@ -97,6 +141,8 @@ class LancamentoService:
             db.refresh(obj)
             return obj
         except (NotFoundException, BadRequestException):
+            db.rollback()
             raise
         except Exception as e:
+            db.rollback()
             raise BadRequestException(detail=f"Erro ao conciliar lançamento: {str(e)}")

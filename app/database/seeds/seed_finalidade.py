@@ -12,8 +12,7 @@ DEFAULT_FINALIDADES = [
     # ── RECEITA ──────────────────────────────────────────────────────────────
     {"id": 1,   "nome": "OFERTA",               "tipo": TipoLancamento.RECEITA},
     {"id": 2,   "nome": "CAMPANHA",              "tipo": TipoLancamento.RECEITA},
-    {"id": 3,   "nome": "INSCRIÇÃO ENCONTRISTA", "tipo": TipoLancamento.RECEITA},
-    {"id": 4,   "nome": "INSCRIÇÃO ENCONTREIRO", "tipo": TipoLancamento.RECEITA},
+    {"id": 3,   "nome": "INSCRIÇÃO",             "tipo": TipoLancamento.RECEITA},
     {"id": 5,   "nome": "OUTROS REC.",           "tipo": TipoLancamento.RECEITA},
     # ── DESPESA ──────────────────────────────────────────────────────────────
     {"id": 101, "nome": "CAMISAS",               "tipo": TipoLancamento.DESPESA},

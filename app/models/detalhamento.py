@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, and_, exists
+from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, and_, exists, select
 from sqlalchemy.orm import column_property, relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import ENUM
@@ -7,6 +7,7 @@ from app.database.base import Base
 from app.models.enums import TipoDetalhamento
 from app.models.encontreiro import Encontreiro
 from app.models.encontrista import Encontrista
+from app.models.lancamento import Lancamento
 
 tipo_detalhamento_enum = ENUM(TipoDetalhamento, name="tipo_detalhamento", create_type=True)
 
@@ -48,4 +49,21 @@ Encontrista.auditado = column_property(
             Detalhamento.referencia_id == Encontrista.id,
         )
     )
+)
+
+# Mesmo motivo/padrão acima: evita N+1 nos cards de conciliação, que
+# precisam saber quantos Detalhamentos e qual a soma já vinculados a
+# cada Lancamento sem uma chamada extra por card.
+Lancamento.quantidade_detalhamentos = column_property(
+    select(func.count(Detalhamento.id))
+    .where(Detalhamento.lancamento_id == Lancamento.id)
+    .correlate_except(Detalhamento)
+    .scalar_subquery()
+)
+
+Lancamento.soma_detalhamentos = column_property(
+    select(func.coalesce(func.sum(Detalhamento.valor), 0))
+    .where(Detalhamento.lancamento_id == Lancamento.id)
+    .correlate_except(Detalhamento)
+    .scalar_subquery()
 )

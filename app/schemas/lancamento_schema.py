@@ -20,8 +20,13 @@ class LancamentoCreate(LancamentoBase):
     pass
 
 
+class DetalhamentoFinalDto(BaseModel):
+    descricao: str = Field(..., min_length=1, max_length=500)
+
+
 class LancamentoConciliarRequest(BaseModel):
     observacao: Optional[str] = None
+    detalhamento_final: Optional[DetalhamentoFinalDto] = None
 
 
 class LancamentoUpdate(BaseModel):
@@ -51,6 +56,8 @@ class LancamentoResponse(LancamentoBase):
     status: StatusLancamento
     finalidade: Optional[FinalidadeResponse] = None
     sugestao_finalidade: Optional[FinalidadeResponse] = None
+    quantidade_detalhamentos: int = 0
+    soma_detalhamentos: float = 0
 
     criado_em: datetime
     atualizado_em: Optional[datetime] = None
