@@ -23,6 +23,14 @@ class UploadFileRepository:
         )
 
     @staticmethod
+    def get_status_by_id(db: Session, upload_id: int):
+        return (
+            db.query(UploadFile.id, UploadFile.status)
+            .filter(UploadFile.id == upload_id)
+            .first()
+        )
+
+    @staticmethod
     def _apply_filters(query, params):
         if params.nome_arquivo:
             query = query.filter(

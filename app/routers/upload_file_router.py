@@ -7,7 +7,7 @@ from app.core.exceptions import NotFoundException
 
 from app.database.session import get_db
 from app.services.upload_file_service import UploadFileService
-from app.schemas.upload_file_schema import UploadFileResponse
+from app.schemas.upload_file_schema import UploadFileResponse, UploadFileStatusResponse
 from app.schemas.pagination_schema import Page
 from app.schemas.upload_file_filter_dto import UploadFileFilterDto
 
@@ -33,6 +33,11 @@ def list_all(
 @router.get("/{upload_id}", response_model=UploadFileResponse)
 def get_by_id(upload_id: int, db: Session = Depends(get_db)):
     return UploadFileService.get_by_id(db, upload_id)
+
+
+@router.get("/{upload_id}/status", response_model=UploadFileStatusResponse)
+def get_status(upload_id: int, db: Session = Depends(get_db)):
+    return UploadFileService.get_status(db, upload_id)
 
 
 @router.get("/{upload_id}/download")

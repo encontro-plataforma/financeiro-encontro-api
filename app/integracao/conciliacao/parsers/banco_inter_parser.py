@@ -5,6 +5,9 @@ from app.integracao.conciliacao.models.conciliacao_dto import ConciliacaoDTO
 
 class BancoInterParser(BaseParser):
 
+    def __init__(self):
+        self.erros: list[dict] = []
+
     def _to_float(self, valor_str: str) -> float:
         return float(valor_str.replace(".", "").replace(",", "."))
 
@@ -21,7 +24,7 @@ class BancoInterParser(BaseParser):
         import io
 
         result = []
-        erros = []
+        self.erros = []
 
         with io.StringIO(conteudo) as csvfile:
             reader = csv.reader(csvfile, delimiter=";")
@@ -48,22 +51,24 @@ class BancoInterParser(BaseParser):
                         valor=abs(self._to_float(valor_str)),
                         data=datetime.strptime(data_str, "%d/%m/%Y"),
                         tipo=self._parse_tipo(historico),
-                        observacao=historico.strip(),
-                        banco="INTER"
+                        observacao=historico.strip() + " | Saldo: " + saldo.strip(),
+                        # observacao=historico.strip(),
+                        banco="INTER",
+                        linha_csv=linha_num,
                     )
 
                     result.append(dto)
 
                 except Exception as e:
-                    erros.append({
+                    self.erros.append({
                         "linha": linha_num,
                         "erro": str(e),
-                        "conteudo": row
+                        "descricao": None,
                     })
 
-        if erros:
-            print(f"[Parser] Linhas com erro: {len(erros)}")
-            for e in erros:
+        if self.erros:
+            print(f"[Parser] Linhas com erro: {len(self.erros)}")
+            for e in self.erros:
                 print(e)
 
         return result

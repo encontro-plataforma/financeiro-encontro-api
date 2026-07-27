@@ -31,6 +31,16 @@ class UploadFileService:
         return obj
 
     @staticmethod
+    def get_status(db: Session, upload_id: int):
+        """Consulta enxuta (não carrega conteudo_csv) usada no polling do upload."""
+        obj = UploadFileRepository.get_status_by_id(db, upload_id)
+
+        if not obj:
+            raise NotFoundException("Arquivo")
+
+        return obj
+
+    @staticmethod
     def create(db: Session, data: dict):
         return UploadFileRepository.create(db, data)
 

@@ -14,3 +14,4 @@ class ConciliacaoDTO:
     banco: Optional[str] = None
     identificador_externo: Optional[str] = None
     observacao: Optional[str] = None
+    linha_csv: Optional[int] = None
