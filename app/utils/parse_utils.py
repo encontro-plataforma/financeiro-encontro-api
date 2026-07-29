@@ -33,10 +33,13 @@ def parse_decimal_br(valor: Optional[str]) -> Optional[Decimal]:
         raise ValueError(f"Valor monetário inválido: '{valor}'") from exc
 
 
-def parse_date_br(valor: Optional[str]) -> Optional[date]:
+def parse_date_br(valor: Optional[str], formato: str = "%d/%m/%Y") -> Optional[date]:
+    """Faz parse de uma data vinda de CSV. Por padrão espera o formato brasileiro
+    (dd/mm/aaaa); passe `formato` quando a coluna vier em outro padrão (ex: exportações
+    que usam mm/dd/aaaa com hora, no formato dos EUA)."""
     if valor is None or not valor.strip():
         return None
     try:
-        return datetime.strptime(valor.strip(), "%d/%m/%Y").date()
+        return datetime.strptime(valor.strip(), formato).date()
     except ValueError as exc:
-        raise ValueError(f"Data inválida: '{valor}' (esperado dd/mm/aaaa)") from exc
+        raise ValueError(f"Data inválida: '{valor}' (esperado formato '{formato}')") from exc

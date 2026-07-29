@@ -109,7 +109,9 @@ class EncontreiroService:
         situacao_default = SituacaoCamisa.SEM_BLUSA if is_new else None
 
         return {
-            "dt_inscricao": parse_date_br(row.dt_inscricao),
+            # Coluna "DT INSC" vem exportada no formato dos EUA (mm/dd/aaaa HH:MM:SS),
+            # diferente das demais datas do CSV (dd/mm/aaaa).
+            "dt_inscricao": parse_date_br(row.dt_inscricao, "%m/%d/%Y %H:%M:%S"),
             "nome": row.nome,
             "apelido": row.apelido,
             "instagram": row.instagram,
