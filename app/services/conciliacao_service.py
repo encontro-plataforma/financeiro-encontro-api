@@ -129,19 +129,29 @@ class ConciliacaoService:
                 is_duplicado,
             )
 
+            inseridos = 0
             for dto in resultado["novos"]:
+                linha = dto.linha_csv
                 try:
                     lancamento_data = ConciliacaoService._to_lancamento_dict(dto)
                     LancamentoService.create(db, lancamento_data)
+                    inseridos += 1
                 except Exception as e:
                     print(f"[DB ERROR] {e}")
+                    resultado["erros"].append({
+                        "linha": linha,
+                        "erro": str(e),
+                        "descricao": dto.descricao if dto else None
+                    })
+                    resultado["total_erros"] += 1
 
             resultado_resumo = {
-                "inseridos": resultado["total_novos"],
+                "inseridos": inseridos,
                 "duplicados": resultado["total_duplicados"],
                 "erros": resultado["total_erros"],
+                "detalhes_erros": resultado["erros"],
                 "mensagem": (
-                    f"Processamento concluído. {resultado['total_novos']} inseridos, "
+                    f"Processamento concluído. {inseridos} inseridos, "
                     f"{resultado['total_duplicados']} duplicados, {resultado['total_erros']} erros."
                 ),
             }

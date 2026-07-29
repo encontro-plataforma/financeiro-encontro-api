@@ -27,13 +27,14 @@ class Conciliador:
 
         novos: list[ConciliacaoDTO] = []
         duplicados = []
-        erros = []
+        erros = list(getattr(parser, "erros", []))
 
         for idx, dto in enumerate(registros, start=1):
+            linha = dto.linha_csv if dto.linha_csv is not None else idx
             try:
                 if is_duplicado_callback(dto):
                     duplicados.append({
-                        "linha": idx,
+                        "linha": linha,
                         "descricao": dto.descricao,
                         "valor": dto.valor,
                         "data": dto.data.isoformat()
@@ -44,7 +45,7 @@ class Conciliador:
 
             except Exception as e:
                 erros.append({
-                    "linha": idx,
+                    "linha": linha,
                     "erro": str(e),
                     "descricao": dto.descricao if dto else None
                 })

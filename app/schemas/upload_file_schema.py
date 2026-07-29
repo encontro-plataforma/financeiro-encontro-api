@@ -16,3 +16,11 @@ class UploadFileResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UploadFileStatusResponse(BaseModel):
+    id: int
+    status: StatusProcessamento
+
+    class Config:
+        from_attributes = True

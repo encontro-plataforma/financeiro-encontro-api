@@ -29,7 +29,7 @@ class LancamentoService:
             )
 
         if LancamentoService.exists_by_hash(db, payload["hash_transacao"]):
-            raise BadRequestException("Lançamento já existe")
+            raise BadRequestException(f"Lançamento já existe (descricao: {payload['descricao']}, valor: {payload['valor']}, data_pagamento: {payload['data_pagamento']})")
 
         payload["status"] = StatusLancamento.NAO_CONCILIADO
         return LancamentoRepository.create(db, payload)
