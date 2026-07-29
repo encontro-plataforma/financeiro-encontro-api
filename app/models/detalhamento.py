@@ -51,6 +51,31 @@ Encontrista.auditado = column_property(
     )
 )
 
+# Id do lançamento vinculado (ou NULL) — usado pela listagem pra saber, sem N+1,
+# se deve mostrar o botão "Ver Lançamento Vinculado". O detalhe completo
+# (lancamento_vinculado) continua vindo só no get_by_id, via join explícito.
+Encontreiro.lancamento_vinculado_id = column_property(
+    select(Detalhamento.lancamento_id)
+    .where(
+        Detalhamento.tipo == TipoDetalhamento.INSCRICAO_ENCONTREIRO,
+        Detalhamento.referencia_id == Encontreiro.id,
+    )
+    .limit(1)
+    .correlate_except(Detalhamento)
+    .scalar_subquery()
+)
+
+Encontrista.lancamento_vinculado_id = column_property(
+    select(Detalhamento.lancamento_id)
+    .where(
+        Detalhamento.tipo == TipoDetalhamento.INSCRICAO_ENCONTRISTA,
+        Detalhamento.referencia_id == Encontrista.id,
+    )
+    .limit(1)
+    .correlate_except(Detalhamento)
+    .scalar_subquery()
+)
+
 # Mesmo motivo/padrão acima: evita N+1 nos cards de conciliação, que
 # precisam saber quantos Detalhamentos e qual a soma já vinculados a
 # cada Lancamento sem uma chamada extra por card.
