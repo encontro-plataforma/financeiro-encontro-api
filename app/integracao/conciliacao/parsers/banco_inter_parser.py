@@ -51,8 +51,8 @@ class BancoInterParser(BaseParser):
                         valor=abs(self._to_float(valor_str)),
                         data=datetime.strptime(data_str, "%d/%m/%Y"),
                         tipo=self._parse_tipo(historico),
-                        observacao=historico.strip() + " | Saldo: " + saldo.strip(),
-                        # observacao=historico.strip(),
+                        # observacao=historico.strip() + " | Saldo: " + saldo.strip(),
+                        observacao=historico.strip(),
                         banco="INTER",
                         linha_csv=linha_num,
                     )
