@@ -22,9 +22,15 @@ class BancoInterParser(BaseParser):
     def parse(self, conteudo: str) -> list[ConciliacaoDTO]:
         import csv
         import io
+        from collections import defaultdict
 
         result = []
         self.erros = []
+
+        # Dicionaria para ccontagem de ocorrências, para diferenciação do que está 
+        # sendo duplicado entre processamentos e o que são lançamentoss diferentes, 
+        # mas ocorrenddo n vezes num mesmo processamento.
+        ocorrencias: dict[tuple, int] = defaultdict(int)
 
         with io.StringIO(conteudo) as csvfile:
             reader = csv.reader(csvfile, delimiter=";")
@@ -44,15 +50,26 @@ class BancoInterParser(BaseParser):
                     continue
 
                 try:
-                    data_str, historico, descricao, valor_str, saldo = row
+                    data_str, historico, descricao, valor_str = row
+
+                    descricao_limpa = descricao.strip()
+                    valor = abs(self._to_float(valor_str))
+                    data = datetime.strptime(data_str, "%d/%m/%Y")
+                    observacao = historico.strip()
+
+                    chave = (descricao_limpa, data, valor)
+                    ocorrencias[chave] += 1
+                    ocorrencia_atual = ocorrencias[chave]
+
+                    if ocorrencia_atual > 1:
+                        observacao = f"{observacao} | ocor: {ocorrencia_atual}"
 
                     dto = ConciliacaoDTO(
-                        descricao=descricao.strip(),
-                        valor=abs(self._to_float(valor_str)),
-                        data=datetime.strptime(data_str, "%d/%m/%Y"),
+                        descricao=descricao_limpa,
+                        valor=valor,
+                        data=data,
                         tipo=self._parse_tipo(historico),
-                        # observacao=historico.strip() + " | Saldo: " + saldo.strip(),
-                        observacao=historico.strip(),
+                        observacao=observacao,
                         banco="INTER",
                         linha_csv=linha_num,
                     )
