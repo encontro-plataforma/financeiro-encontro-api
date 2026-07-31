@@ -5,7 +5,7 @@ from app.repositories.detalhamento_repository import DetalhamentoRepository
 from app.repositories.lancamento_repository import LancamentoRepository
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.models.detalhamento import Detalhamento
-from app.models.enums import StatusLancamento, TipoDetalhamento
+from app.models.enums import StatusLancamento, TipoDetalhamento, TipoLancamento
 from app.repositories.encontreiro_repository import EncontreiroRepository
 from app.repositories.encontrista_repository import EncontristaRepository
 from app.repositories.finalidade_repository import FinalidadeRepository
@@ -70,6 +70,23 @@ class DetalhamentoService:
             raise NotFoundException("Detalhamento")
 
         return DetalhamentoService._enriquecer(db, obj)
+
+    @staticmethod
+    def _validar_vinculo_permitido(db: Session, lancamento_id: int):
+        lancamento = LancamentoRepository.get_by_id(db, lancamento_id)
+        if not lancamento:
+            return  # FK constraint cuida do erro de integridade; fora de escopo aqui
+
+        if lancamento.tipo == TipoLancamento.DESPESA:
+            raise BadRequestException(
+                "Não é possível vincular detalhamentos a um lançamento de despesa."
+            )
+
+        if lancamento.status == StatusLancamento.CONCILIADO:
+            raise BadRequestException(
+                "Não é possível incluir detalhamentos em um lançamento já conciliado. "
+                "Desconcilie antes de alterar."
+            )
 
     @staticmethod
     def _validar_soma(db: Session, lancamento_id: int, novo_valor, excluir_id: int = None):
@@ -141,6 +158,7 @@ class DetalhamentoService:
 
     @staticmethod
     def create(db: Session, data: dict):
+        DetalhamentoService._validar_vinculo_permitido(db, data["lancamento_id"])
         DetalhamentoService._validar_soma(db, data["lancamento_id"], data["valor"])
         obj = DetalhamentoRepository.create(db, data)
         DetalhamentoService._sincronizar_status_lancamento(db, data["lancamento_id"])
@@ -156,6 +174,10 @@ class DetalhamentoService:
 
         lancamento_id_antigo = obj.lancamento_id
         lancamento_id_novo = data.get("lancamento_id", lancamento_id_antigo)
+
+        if lancamento_id_novo != lancamento_id_antigo:
+            DetalhamentoService._validar_vinculo_permitido(db, lancamento_id_novo)
+
         novo_valor = data.get("valor", obj.valor)
         DetalhamentoService._validar_soma(db, lancamento_id_novo, novo_valor, excluir_id=detalhamento_id)
 

@@ -1,5 +1,18 @@
 # Histórico de Versões
 
+## [0.3.3] — 2026-07-31
+
+### Adicionado
+- `DetalhamentoService.create`/`update` rejeitam vincular detalhamentos a um lançamento de Despesa, ou a um
+  lançamento já Conciliado (nesse caso, é preciso desconciliar antes) — vale para os dois pontos de entrada
+  (tela de Conciliação e "Vincular Lançamento" em Encontreiro/Encontrista), já que ambos passam por este
+  service. `AuditoriaService.processar()` passou a tratar essas rejeições por candidato individualmente, sem
+  abortar o restante do lote
+- `LancamentoService.update` passa a validar, antes de aplicar qualquer alteração: (1) lançamento Conciliado
+  não pode ser editado (exceto a própria transição para Não Conciliado); (2) tipo só pode mudar de Receita
+  para Despesa se não houver nenhum Detalhamento vinculado; (3) para lançamentos de Receita, o novo valor não
+  pode ser menor que a soma dos Detalhamentos já vinculados
+
 ## [0.3.2] — 2026-07-31
 
 ### Corrigido

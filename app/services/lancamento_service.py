@@ -42,6 +42,36 @@ class LancamentoService:
             raise NotFoundException("Lançamento")
 
         updated = data.model_dump(exclude_unset=True, exclude_none=True)
+
+        if obj.status == StatusLancamento.CONCILIADO and updated.get("status") != StatusLancamento.NAO_CONCILIADO:
+            raise BadRequestException(
+                "Lançamento conciliado não pode ser editado. Desconcilie antes de alterar."
+            )
+
+        if updated.get("tipo") == TipoLancamento.DESPESA and obj.tipo != TipoLancamento.DESPESA:
+            tem_detalhamento = (
+                db.query(Detalhamento)
+                .filter(Detalhamento.lancamento_id == lancamento_id)
+                .first() is not None
+            )
+            if tem_detalhamento:
+                raise BadRequestException(
+                    "Não é possível mudar o tipo para Despesa: existem detalhamentos vinculados "
+                    "a este lançamento. Remova-os antes de trocar o tipo."
+                )
+
+        novo_tipo = updated.get("tipo", obj.tipo)
+        if novo_tipo == TipoLancamento.RECEITA and "valor" in updated:
+            soma = sum(
+                (d.valor for d in db.query(Detalhamento).filter(Detalhamento.lancamento_id == lancamento_id).all()),
+                Decimal("0"),
+            )
+            novo_valor = Decimal(str(updated["valor"]))
+            if novo_valor < soma - _TOLERANCIA:
+                raise BadRequestException(
+                    f"O valor não pode ser menor que a soma dos detalhamentos já vinculados (R$ {soma:.2f})."
+                )
+
         return LancamentoRepository.update(db, obj, updated)
 
     @staticmethod
