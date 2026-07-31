@@ -50,7 +50,7 @@ class BancoInterParser(BaseParser):
                     continue
 
                 try:
-                    data_str, historico, descricao, valor_str = row
+                    data_str, historico, descricao, valor_str, saldo = row
 
                     descricao_limpa = descricao.strip()
                     valor = abs(self._to_float(valor_str))

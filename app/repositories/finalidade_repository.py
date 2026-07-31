@@ -26,6 +26,10 @@ class FinalidadeRepository:
         return db.query(Finalidade).filter(Finalidade.id == finalidade_id).first()
 
     @staticmethod
+    def get_by_nome(db: Session, nome: str):
+        return db.query(Finalidade).filter(Finalidade.nome == nome).first()
+
+    @staticmethod
     def list_all(db: Session, params):
         query = db.query(Finalidade)
         query = _apply_filters(query, params)

@@ -9,6 +9,7 @@ class EncontreiroFilterDto(QueryParams):
     nome: Optional[str] = None
     apelido: Optional[str] = None
     nome_ou_apelido: Optional[str] = None
+    nome_pagador: Optional[str] = None
     equipe_nome: Optional[str] = None
     equipe_acesso: Optional[AcessoEquipe] = None
     equipe_ids: Optional[List[int]] = None

@@ -8,21 +8,24 @@ from app.models.detalhamento import Detalhamento
 from app.models.enums import StatusLancamento, TipoDetalhamento
 from app.repositories.encontreiro_repository import EncontreiroRepository
 from app.repositories.encontrista_repository import EncontristaRepository
+from app.repositories.finalidade_repository import FinalidadeRepository
 
 _ROTULO_POR_TIPO = {
     TipoDetalhamento.OFERTA: "OFERTA",
     TipoDetalhamento.OUTRO: "OUTRO",
 }
 
+_TIPOS_INSCRICAO = {TipoDetalhamento.INSCRICAO_ENCONTREIRO, TipoDetalhamento.INSCRICAO_ENCONTRISTA}
+
 _TOLERANCIA = Decimal("0.01")
 
 
 class DetalhamentoService:
     """create/update/delete mantêm o status do Lancamento sincronizado com a
-    cobertura dos detalhamentos (ver _sincronizar_status_lancamento/_desconciliar_lancamento).
-    Nota: AuditoriaService.processar() cria Detalhamento diretamente via db.add(),
-    sem passar por este service — a auditoria automática ainda não aciona essa
-    sincronização (fora do escopo desta mudança)."""
+    cobertura dos detalhamentos (ver _sincronizar_status_lancamento/_desconciliar_lancamento)
+    e forçam a finalidade "INSCRIÇÃO" quando o detalhamento é de inscrição
+    (ver _aplicar_finalidade_inscricao). AuditoriaService.processar() também passa
+    por aqui, então os vínculos automáticos recebem o mesmo tratamento."""
 
     @staticmethod
     def _enriquecer(db: Session, detalhamento):
@@ -107,6 +110,25 @@ class DetalhamentoService:
             db.commit()
 
     @staticmethod
+    def _aplicar_finalidade_inscricao(db: Session, lancamento_id: int, tipo):
+        """Vincular uma inscrição (Encontreiro/Encontrista) a um lançamento sempre
+        indica que ele é uma receita de inscrição — força a finalidade para não
+        depender do usuário lembrar de trocá-la manualmente."""
+        if tipo not in _TIPOS_INSCRICAO:
+            return
+
+        lancamento = LancamentoRepository.get_by_id(db, lancamento_id)
+        if not lancamento:
+            return
+
+        finalidade = FinalidadeRepository.get_by_nome(db, "INSCRIÇÃO")
+        if not finalidade or lancamento.finalidade_id == finalidade.id:
+            return
+
+        lancamento.finalidade_id = finalidade.id
+        db.commit()
+
+    @staticmethod
     def _desconciliar_lancamento(db: Session, lancamento_id: int):
         """Um detalhamento removido (ou trocado de lançamento) significa que a
         cobertura anterior não vale mais — o lançamento volta a precisar de revisão."""
@@ -122,6 +144,7 @@ class DetalhamentoService:
         DetalhamentoService._validar_soma(db, data["lancamento_id"], data["valor"])
         obj = DetalhamentoRepository.create(db, data)
         DetalhamentoService._sincronizar_status_lancamento(db, data["lancamento_id"])
+        DetalhamentoService._aplicar_finalidade_inscricao(db, data["lancamento_id"], obj.tipo)
         return DetalhamentoService._enriquecer(db, obj)
 
     @staticmethod
@@ -141,6 +164,7 @@ class DetalhamentoService:
         if lancamento_id_novo != lancamento_id_antigo:
             DetalhamentoService._desconciliar_lancamento(db, lancamento_id_antigo)
             DetalhamentoService._sincronizar_status_lancamento(db, lancamento_id_novo)
+            DetalhamentoService._aplicar_finalidade_inscricao(db, lancamento_id_novo, obj.tipo)
 
         return DetalhamentoService._enriquecer(db, obj)
 

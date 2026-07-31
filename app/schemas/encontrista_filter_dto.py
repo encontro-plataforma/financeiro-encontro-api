@@ -8,6 +8,7 @@ class EncontristaFilterDto(QueryParams):
     nome: Optional[str] = None
     apelido: Optional[str] = None
     nome_ou_apelido: Optional[str] = None
+    nome_pagador: Optional[str] = None
     circulo_nome: Optional[str] = None
     circulo_ids: Optional[List[int]] = None  # 0 = "sem círculo" (circulo_id IS NULL)
     padrinho_id: Optional[int] = None

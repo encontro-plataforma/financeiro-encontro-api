@@ -1,5 +1,36 @@
 # Histórico de Versões
 
+## [0.3.2] — 2026-07-31
+
+### Corrigido
+- `app/core/config.py` não carregava o `.env` sozinho — dependia do processo já ter as variáveis no
+  ambiente (via `start-backend.sh`, que faz `source .env`, ou via `envFile` do VS Code). A config de debug
+  "FastAPI: Debug backend" sobe o uvicorn direto via debugpy e, quando o `envFile` do VS Code não é aplicado
+  corretamente, `DATABASE_URL` caía no fallback hardcoded errado, derrubando a app no startup por falha de
+  autenticação no banco. `config.py` agora chama `load_dotenv()` (dependência `python-dotenv` já existia no
+  `requirements.txt`, mas nunca era usada)
+- `.vscode/launch.json`: removido `--reload` da config de debug — incompatibilidade conhecida entre o
+  reloader do uvicorn e o debugpy no Windows (`KeyboardInterrupt` no processo filho durante o attach ao
+  subprocesso recarregado)
+- `BancoInterParser.parse`: corrigido "too many values to unpack" ao desestruturar a linha do CSV — a
+  validação de tamanho da linha já exigia a coluna de saldo, mas ela não estava sendo capturada na
+  desestruturação
+- `EncontreiroRepository`/`EncontristaRepository`: soma dos Detalhamentos e status do Lancamento agora
+  também são sincronizados quando o vínculo é criado pela auditoria automática em lote, não só pelos
+  endpoints manuais (ver `AuditoriaService` abaixo)
+
+### Adicionado
+- Filtro `nome_pagador` em `GET /encontreiros` e `GET /encontristas` (`ilike`), usado pela busca por nome do
+  pagador no dialog de vínculo de inscrição
+
+### Alterado
+- `DetalhamentoService.create`/`update` passam a forçar a finalidade do lançamento vinculado para
+  "INSCRIÇÃO" sempre que o detalhamento é de inscrição (Encontreiro ou Encontrista) — cobre tanto a criação
+  do vínculo quanto a troca do lançamento vinculado
+- `AuditoriaService.processar()` passa a criar os Detalhamentos via `DetalhamentoService.create()` em vez de
+  `db.add()` direto — os vínculos automáticos da auditoria em lote agora também sincronizam o status do
+  lançamento e aplicam a finalidade "INSCRIÇÃO" acima
+
 ## [0.3.1] — 2026-07-26
 
 ### Corrigido

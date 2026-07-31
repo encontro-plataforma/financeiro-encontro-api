@@ -27,6 +27,9 @@ def _apply_filters(query, params):
             (Encontreiro.nome.ilike(busca)) | (Encontreiro.apelido.ilike(busca))
         )
 
+    if getattr(params, "nome_pagador", None):
+        query = query.filter(Encontreiro.nome_pagador.ilike(f"%{params.nome_pagador}%"))
+
     if params.equipe_nome or params.equipe_acesso:
         query = query.join(Equipe, Encontreiro.equipe_id == Equipe.id)
 
