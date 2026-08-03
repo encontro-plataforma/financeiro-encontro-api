@@ -27,6 +27,7 @@ _CABECALHO_PARA_CAMPO = {
     "NOME PAGADOR": "nome_pagador",
     "PAGAMENTO": "pagamento",
     "OBSERVACAO": "observacao",
+    "MONTAGEM": "montagem",
 }
 
 
@@ -54,7 +55,7 @@ class EncontreiroCsvRow:
     nome_pagador: Optional[str] = None
     pagamento: Optional[str] = None
     observacao: Optional[str] = None
-
+    montagem: Optional[str] = None
 
 def _mapear_cabecalho(row: List[str]) -> Dict[int, str]:
     indice_para_campo = {}
