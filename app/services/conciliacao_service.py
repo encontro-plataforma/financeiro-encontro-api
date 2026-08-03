@@ -150,6 +150,7 @@ class ConciliacaoService:
                 "duplicados": resultado["total_duplicados"],
                 "erros": resultado["total_erros"],
                 "detalhes_erros": resultado["erros"],
+                "detalhes_duplicados": resultado["duplicados"],
                 "mensagem": (
                     f"Processamento concluído. {inseridos} inseridos, "
                     f"{resultado['total_duplicados']} duplicados, {resultado['total_erros']} erros."

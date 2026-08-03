@@ -51,6 +51,7 @@ class EncontristaResponse(BaseModel):
     criado_em: datetime
     auditado: bool
     detalhamento_id: Optional[int] = None
+    lancamento_vinculado_id: Optional[int] = None
     lancamento_vinculado: Optional[LancamentoResumo] = None
 
     class Config:

@@ -1,6 +1,10 @@
 import os
 
-APP_VERSION = os.getenv("APP_VERSION", "0.3.1")
+from dotenv import load_dotenv
+
+load_dotenv()
+
+APP_VERSION = os.getenv("APP_VERSION", "0.3.3")
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",

@@ -8,8 +8,10 @@ from sqlalchemy.orm import Session
 from app.models.detalhamento import Detalhamento
 from app.models.encontreiro import Encontreiro
 from app.models.encontrista import Encontrista
+from app.core.exceptions import BadRequestException
 from app.models.enums import TipoDetalhamento, TipoLancamento
 from app.models.lancamento import Lancamento
+from app.services.detalhamento_service import DetalhamentoService
 from app.utils.parse_utils import remover_acentos
 
 logger = logging.getLogger("uvicorn.error")
@@ -125,14 +127,19 @@ def _processar_observacao(db: Session, lancamento: Lancamento, observacao: Optio
                 .first()
             )
             if not ja_existe:
-                db.add(Detalhamento(
-                    lancamento_id=lancamento.id,
-                    tipo=TipoDetalhamento.OFERTA,
-                    referencia_id=None,
-                    valor=valor,
-                    descricao=f"R$ {valor:.2f} em oferta",
-                ))
-                db.flush()
+                try:
+                    DetalhamentoService.create(db, {
+                        "lancamento_id": lancamento.id,
+                        "tipo": TipoDetalhamento.OFERTA,
+                        "referencia_id": None,
+                        "valor": valor,
+                        "descricao": f"R$ {valor:.2f} em oferta",
+                    })
+                except BadRequestException as e:
+                    logger.info(
+                        "Auditoria: oferta extra não pôde ser vinculada ao lançamento id=%s: %s",
+                        lancamento.id, e,
+                    )
 
     for palavra, modelo, tipo in (
         ("encontreiro", Encontreiro, TipoDetalhamento.INSCRICAO_ENCONTREIRO),
@@ -159,13 +166,18 @@ def _processar_observacao(db: Session, lancamento: Lancamento, observacao: Optio
             )
             continue
 
-        db.add(Detalhamento(
-            lancamento_id=lancamento.id,
-            tipo=tipo,
-            referencia_id=pessoa.id,
-            valor=valor_pessoa,
-        ))
-        db.flush()
+        try:
+            DetalhamentoService.create(db, {
+                "lancamento_id": lancamento.id,
+                "tipo": tipo,
+                "referencia_id": pessoa.id,
+                "valor": valor_pessoa,
+            })
+        except BadRequestException as e:
+            logger.info(
+                "Auditoria: %s '%s' citado na observação não pôde ser vinculado ao lançamento id=%s: %s",
+                palavra, pessoa.nome, lancamento.id, e,
+            )
 
 
 def _processar_pendentes(db: Session, modelo, tipo_principal: TipoDetalhamento):
@@ -197,13 +209,22 @@ def _processar_pendentes(db: Session, modelo, tipo_principal: TipoDetalhamento):
             })
             continue
 
-        db.add(Detalhamento(
-            lancamento_id=lancamento.id,
-            tipo=tipo_principal,
-            referencia_id=pessoa.id,
-            valor=pessoa.pagamento,
-        ))
-        db.flush()
+        try:
+            DetalhamentoService.create(db, {
+                "lancamento_id": lancamento.id,
+                "tipo": tipo_principal,
+                "referencia_id": pessoa.id,
+                "valor": pessoa.pagamento,
+            })
+        except BadRequestException as e:
+            nao_auditados.append({
+                "tipo": tipo_principal.value,
+                "id": pessoa.id,
+                "nome": pessoa.nome,
+                "motivo": str(e),
+            })
+            continue
+
         vinculados += 1
 
         _processar_observacao(db, lancamento, pessoa.observacao)

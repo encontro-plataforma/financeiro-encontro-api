@@ -30,6 +30,9 @@ def _apply_filters(query, params):
             (Encontrista.nome.ilike(busca)) | (Encontrista.apelido.ilike(busca))
         )
 
+    if getattr(params, "nome_pagador", None):
+        query = query.filter(Encontrista.nome_pagador.ilike(f"%{params.nome_pagador}%"))
+
     if params.circulo_nome:
         query = query.join(Circulo, Encontrista.circulo_id == Circulo.id)
         query = query.filter(Circulo.nome.ilike(f"%{params.circulo_nome}%"))
