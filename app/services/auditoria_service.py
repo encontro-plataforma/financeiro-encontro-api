@@ -1,23 +1,26 @@
-import logging
-import re
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import BadRequestException
+from app.integracao.regras.dtos import CandidatoLancamento, ItemDetalhamento, PendenciaAuditoria
+from app.integracao.regras.motor_extracao import extrair_detalhamentos
+from app.integracao.regras.motor_match import selecionar_lancamento
 from app.models.detalhamento import Detalhamento
 from app.models.encontreiro import Encontreiro
 from app.models.encontrista import Encontrista
-from app.core.exceptions import BadRequestException
-from app.models.enums import TipoDetalhamento, TipoLancamento
+from app.models.enums import EscopoRegraGrupo, TipoDetalhamento, TipoLancamento
 from app.models.lancamento import Lancamento
+from app.repositories.regra_repository import RegraRepository
 from app.services.detalhamento_service import DetalhamentoService
-from app.utils.parse_utils import remover_acentos
 
-logger = logging.getLogger("uvicorn.error")
-
-_VALOR_REGEX = re.compile(r"(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2}|\d+)")
 _TOLERANCIA = Decimal("0.01")
+
+_ESCOPO_POR_TIPO = {
+    TipoDetalhamento.INSCRICAO_ENCONTREIRO: EscopoRegraGrupo.EXTRACAO_ENCONTREIRO,
+    TipoDetalhamento.INSCRICAO_ENCONTRISTA: EscopoRegraGrupo.EXTRACAO_ENCONTRISTA,
+}
 
 
 def _decimal(valor) -> Decimal:
@@ -34,12 +37,18 @@ def _capacidade_restante(db: Session, lancamento: Lancamento) -> Decimal:
     return _decimal(lancamento.valor) - total_consumido
 
 
-def _texto_contem(texto: str, alvo: str) -> bool:
-    return alvo in remover_acentos(texto or "").lower()
+def _montar_pendencia(pessoa) -> PendenciaAuditoria:
+    return PendenciaAuditoria(
+        id=pessoa.id,
+        nome_pagador=pessoa.nome_pagador,
+        dt_pagamento=pessoa.dt_pagamento,
+        pagamento=_decimal(pessoa.pagamento),
+        observacao=pessoa.observacao,
+    )
 
 
-def _buscar_lancamento(db: Session, dt_pagamento, valor_necessario: Decimal, nome_pagador: Optional[str]):
-    candidatos = (
+def _buscar_candidatos(db: Session, dt_pagamento) -> list[Lancamento]:
+    return (
         db.query(Lancamento)
         .filter(
             Lancamento.data_pagamento == dt_pagamento,
@@ -48,139 +57,56 @@ def _buscar_lancamento(db: Session, dt_pagamento, valor_necessario: Decimal, nom
         .all()
     )
 
-    candidatos_validos = [
-        l for l in candidatos
-        if _capacidade_restante(db, l) >= valor_necessario - _TOLERANCIA
-    ]
 
-    if not candidatos_validos:
+def _selecionar_lancamento(db: Session, pendencia: PendenciaAuditoria) -> Optional[Lancamento]:
+    """Etapa A (Match): decide qual Lancamento corresponde à pendência."""
+    candidatos_orm = _buscar_candidatos(db, pendencia.dt_pagamento)
+    if not candidatos_orm:
         return None
 
-    if len(candidatos_validos) == 1:
-        return candidatos_validos[0]
-
-    exatos = [
-        l for l in candidatos_validos
-        if abs(_capacidade_restante(db, l) - valor_necessario) <= _TOLERANCIA
+    candidatos_dto = [
+        CandidatoLancamento(id=l.id, descricao=l.descricao, capacidade_restante=_capacidade_restante(db, l))
+        for l in candidatos_orm
     ]
-    if len(exatos) == 1:
-        return exatos[0]
 
-    if nome_pagador:
-        nome_normalizado = remover_acentos(nome_pagador).lower()
-        por_nome = [
-            l for l in (exatos or candidatos_validos)
-            if nome_normalizado and (
-                nome_normalizado in remover_acentos(l.descricao or "").lower()
-                or nome_normalizado in remover_acentos(l.observacao or "").lower()
-            )
-        ]
-        if len(por_nome) == 1:
-            return por_nome[0]
+    escolhido = selecionar_lancamento(pendencia, candidatos_dto)
+    if not escolhido:
+        return None
+
+    por_id = {l.id: l for l in candidatos_orm}
+    return por_id[escolhido.id]
+
+
+def _criar_detalhamentos(db: Session, lancamento: Lancamento, itens: list[ItemDetalhamento]) -> Optional[str]:
+    """Cria os itens da Etapa B (Extração). Se a soma exceder a capacidade
+    restante do lançamento, não cria nada e devolve o motivo do erro."""
+    capacidade = _capacidade_restante(db, lancamento)
+    soma_itens = sum((item.valor for item in itens), Decimal("0"))
+    if soma_itens > capacidade + _TOLERANCIA:
+        return (
+            f"Os detalhamentos identificados na observação somam R$ {soma_itens:.2f}, "
+            f"mas o lançamento só tem R$ {capacidade:.2f} de capacidade restante."
+        )
+
+    for item in itens:
+        try:
+            DetalhamentoService.create(db, {
+                "lancamento_id": lancamento.id,
+                "tipo": item.tipo,
+                "referencia_id": item.referencia_id,
+                "valor": item.valor,
+            })
+        except BadRequestException as e:
+            return str(e)
 
     return None
 
 
-def _extrair_valor_proximo(texto: str) -> Optional[Decimal]:
-    match = _VALOR_REGEX.search(texto)
-    if not match:
-        return None
-    bruto = match.group(1)
-    try:
-        return Decimal(bruto.replace(".", "").replace(",", "."))
-    except InvalidOperation:
-        return None
-
-
-def _extrair_nome_apos_palavra(texto_original: str, palavra: str) -> Optional[str]:
-    padrao = re.compile(re.escape(palavra), re.IGNORECASE)
-    match = padrao.search(remover_acentos(texto_original))
-    if not match:
-        return None
-
-    resto = texto_original[match.end():]
-    resto = re.split(r"[,.;\n]", resto)[0]
-    resto = resto.strip(" :-")
-    return resto or None
-
-
-def _processar_observacao(db: Session, lancamento: Lancamento, observacao: Optional[str]):
-    """Analisa o texto livre de observacao do Encontreiro/Encontrista para
-    identificar outras coisas pagas no mesmo lancamento (oferta, outra
-    inscricao), criando Detalhamentos extras quando ainda não existirem."""
-    if not observacao:
-        return
-
-    if _texto_contem(observacao, "oferta"):
-        valor = _extrair_valor_proximo(observacao)
-        if valor is None:
-            valor = _capacidade_restante(db, lancamento)
-
-        if valor and valor > _TOLERANCIA:
-            ja_existe = (
-                db.query(Detalhamento)
-                .filter(
-                    Detalhamento.lancamento_id == lancamento.id,
-                    Detalhamento.tipo == TipoDetalhamento.OFERTA,
-                    Detalhamento.valor == valor,
-                )
-                .first()
-            )
-            if not ja_existe:
-                try:
-                    DetalhamentoService.create(db, {
-                        "lancamento_id": lancamento.id,
-                        "tipo": TipoDetalhamento.OFERTA,
-                        "referencia_id": None,
-                        "valor": valor,
-                        "descricao": f"R$ {valor:.2f} em oferta",
-                    })
-                except BadRequestException as e:
-                    logger.info(
-                        "Auditoria: oferta extra não pôde ser vinculada ao lançamento id=%s: %s",
-                        lancamento.id, e,
-                    )
-
-    for palavra, modelo, tipo in (
-        ("encontreiro", Encontreiro, TipoDetalhamento.INSCRICAO_ENCONTREIRO),
-        ("encontrista", Encontrista, TipoDetalhamento.INSCRICAO_ENCONTRISTA),
-    ):
-        if not _texto_contem(observacao, palavra):
-            continue
-
-        nome_extraido = _extrair_nome_apos_palavra(observacao, palavra)
-        if not nome_extraido:
-            continue
-
-        pessoa = db.query(modelo).filter(modelo.nome.ilike(f"%{nome_extraido}%")).first()
-        if not pessoa or pessoa.auditado:
-            continue
-
-        valor_pessoa = _decimal(pessoa.pagamento)
-        capacidade = _capacidade_restante(db, lancamento)
-        if valor_pessoa <= 0 or valor_pessoa > capacidade + _TOLERANCIA:
-            logger.info(
-                "Auditoria: %s '%s' citado na observação do lançamento id=%s, "
-                "mas o valor não cabe no que resta do lançamento",
-                palavra, pessoa.nome, lancamento.id,
-            )
-            continue
-
-        try:
-            DetalhamentoService.create(db, {
-                "lancamento_id": lancamento.id,
-                "tipo": tipo,
-                "referencia_id": pessoa.id,
-                "valor": valor_pessoa,
-            })
-        except BadRequestException as e:
-            logger.info(
-                "Auditoria: %s '%s' citado na observação não pôde ser vinculado ao lançamento id=%s: %s",
-                palavra, pessoa.nome, lancamento.id, e,
-            )
-
-
 def _processar_pendentes(db: Session, modelo, tipo_principal: TipoDetalhamento):
+    grupos = RegraRepository.list_ativos_por_escopos(
+        db, [_ESCOPO_POR_TIPO[tipo_principal], EscopoRegraGrupo.OFERTAS]
+    )
+
     pendentes = (
         db.query(modelo)
         .filter(
@@ -197,9 +123,8 @@ def _processar_pendentes(db: Session, modelo, tipo_principal: TipoDetalhamento):
     nao_auditados = []
 
     for pessoa in pendentes:
-        lancamento = _buscar_lancamento(
-            db, pessoa.dt_pagamento, _decimal(pessoa.pagamento), pessoa.nome_pagador
-        )
+        pendencia = _montar_pendencia(pessoa)
+        lancamento = _selecionar_lancamento(db, pendencia)
 
         if not lancamento:
             nao_auditados.append({
@@ -209,25 +134,19 @@ def _processar_pendentes(db: Session, modelo, tipo_principal: TipoDetalhamento):
             })
             continue
 
-        try:
-            DetalhamentoService.create(db, {
-                "lancamento_id": lancamento.id,
-                "tipo": tipo_principal,
-                "referencia_id": pessoa.id,
-                "valor": pessoa.pagamento,
-            })
-        except BadRequestException as e:
+        itens = extrair_detalhamentos(pendencia, grupos, tipo_principal)
+        erro = _criar_detalhamentos(db, lancamento, itens)
+
+        if erro:
             nao_auditados.append({
                 "tipo": tipo_principal.value,
                 "id": pessoa.id,
                 "nome": pessoa.nome,
-                "motivo": str(e),
+                "motivo": erro,
             })
             continue
 
         vinculados += 1
-
-        _processar_observacao(db, lancamento, pessoa.observacao)
 
     return len(pendentes), vinculados, nao_auditados
 
