@@ -43,6 +43,15 @@ def upgrade() -> None:
         sa.Column("nome", sa.String(150), nullable=False),
         sa.Column("ordem", sa.Integer(), nullable=False),
         sa.Column("ativo", sa.Boolean(), server_default="true", nullable=False),
+        sa.Column(
+            "tipo_detalhamento_resultado",
+            postgresql.ENUM(
+                "INSCRICAO_ENCONTREIRO", "INSCRICAO_ENCONTRISTA", "OFERTA", "OUTRO",
+                name="tipo_detalhamento",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
         sa.Column("criado_em", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=True),
         sa.Column("atualizado_em", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
@@ -56,15 +65,6 @@ def upgrade() -> None:
         sa.Column("regra_id", sa.Integer(), nullable=False),
         sa.Column("ordem", sa.Integer(), nullable=False),
         sa.Column("padrao_regex", sa.String(500), nullable=False),
-        sa.Column(
-            "tipo_detalhamento_resultado",
-            postgresql.ENUM(
-                "INSCRICAO_ENCONTREIRO", "INSCRICAO_ENCONTRISTA", "OFERTA", "OUTRO",
-                name="tipo_detalhamento",
-                create_type=False,
-            ),
-            nullable=False,
-        ),
         sa.Column("criado_em", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=True),
         sa.Column("atualizado_em", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
