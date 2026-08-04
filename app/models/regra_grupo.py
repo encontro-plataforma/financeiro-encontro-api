@@ -15,7 +15,8 @@ class RegraGrupo(Base):
     id = Column(Integer, primary_key=True)
     nome = Column(String(150), nullable=False)
     descricao = Column(String(500), nullable=True)
-    escopo = Column(escopo_regra_grupo_enum, nullable=False, index=True)
+    # Um único grupo por escopo — o nome do grupo é sempre igual ao escopo.
+    escopo = Column(escopo_regra_grupo_enum, nullable=False, unique=True, index=True)
     ordem = Column(Integer, nullable=False)
     ativo = Column(Boolean, nullable=False, server_default="true")
     criado_em = Column(DateTime(timezone=True), server_default=func.now())

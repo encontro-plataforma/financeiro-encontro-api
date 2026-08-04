@@ -55,3 +55,4 @@ class TipoDetalhamento(str, Enum):
 class EscopoRegraGrupo(str, Enum):
     EXTRACAO_ENCONTREIRO = "EXTRACAO_ENCONTREIRO"
     EXTRACAO_ENCONTRISTA = "EXTRACAO_ENCONTRISTA"
+    OFERTAS = "OFERTAS"

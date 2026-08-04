@@ -25,7 +25,10 @@ def upgrade() -> None:
         sa.Column("descricao", sa.String(500), nullable=True),
         sa.Column(
             "escopo",
-            postgresql.ENUM("EXTRACAO_ENCONTREIRO", "EXTRACAO_ENCONTRISTA", name="escopo_regra_grupo"),
+            postgresql.ENUM(
+                "EXTRACAO_ENCONTREIRO", "EXTRACAO_ENCONTRISTA", "OFERTAS",
+                name="escopo_regra_grupo",
+            ),
             nullable=False,
         ),
         sa.Column("ordem", sa.Integer(), nullable=False),
@@ -34,7 +37,8 @@ def upgrade() -> None:
         sa.Column("atualizado_em", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_regra_grupos_escopo"), "regra_grupos", ["escopo"], unique=False)
+    # Único grupo por escopo — o nome do grupo é sempre igual ao escopo.
+    op.create_index(op.f("ix_regra_grupos_escopo"), "regra_grupos", ["escopo"], unique=True)
 
     op.create_table(
         "regras",
