@@ -18,15 +18,19 @@ def _parse_valor(bruto: str) -> Optional[Decimal]:
 
 def _valor_se_regra_casar(regra, texto_normalizado: str) -> Optional[Decimal]:
     """Todas as RegraCondicao da regra precisam casar (AND) para a regra
-    "casar". O valor do Detalhamento vem do grupo de captura da primeira
-    condição, em ordem, que tiver um."""
+    "casar". O valor do Detalhamento vem do primeiro grupo de captura não
+    vazio da primeira condição, em ordem, que tiver um — um padrão pode ter
+    mais de um grupo quando testa a mesma coisa em ordens diferentes (ex.:
+    "inscrição 90" vs "90 de inscrição"), só um dos ramos casa por vez."""
     valor = None
     for condicao in regra.condicoes:
         match = re.search(condicao.padrao_regex, texto_normalizado, re.IGNORECASE)
         if not match:
             return None
-        if valor is None and match.groups():
-            valor = _parse_valor(match.group(1))
+        if valor is None:
+            capturado = next((g for g in match.groups() if g is not None), None)
+            if capturado is not None:
+                valor = _parse_valor(capturado)
     return valor
 
 

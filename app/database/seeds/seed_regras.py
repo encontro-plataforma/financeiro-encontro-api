@@ -17,9 +17,11 @@ from app.models.enums import EscopoRegraGrupo, TipoDetalhamento
 # fallback padrão (1 Detalhamento com o valor total pago).
 #
 # O motor normaliza a observação (remove acento, minúsculo) antes de aplicar
-# os padrões — por isso os regex abaixo são escritos sem acento.
-_PADRAO_INSCRICAO = r"inscricao\D{1,10}?(\d+(?:[.,]\d{2})?)"
-_PADRAO_OFERTA = r"(\d+(?:[.,]\d{2})?)\D{1,10}?oferta"
+# os padrões — por isso os regex abaixo são escritos sem acento. O valor pode
+# aparecer antes ou depois do token (ex.: "inscrição 90" ou "90,00 de
+# inscrição"), por isso cada padrão tenta as duas ordens.
+_PADRAO_INSCRICAO = r"(?:inscricao\D*?(\d+(?:[.,]\d{2})?)|(\d+(?:[.,]\d{2})?)\D*?inscricao)"
+_PADRAO_OFERTA = r"(?:oferta\D*?(\d+(?:[.,]\d{2})?)|(\d+(?:[.,]\d{2})?)\D*?oferta)"
 
 DEFAULT_GRUPOS = [
     {
