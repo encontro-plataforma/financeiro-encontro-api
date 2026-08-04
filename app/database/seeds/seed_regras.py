@@ -15,7 +15,10 @@ from app.models.enums import EscopoRegraGrupo, TipoDetalhamento
 #     duplicado dentro dos grupos de inscrição).
 # Se nenhuma regra do(s) grupo(s) aplicável(is) casar, o motor cai no
 # fallback padrão (1 Detalhamento com o valor total pago).
-_PADRAO_INSCRICAO = r"inscri[cç][aã]o\D{1,10}?(\d+(?:[.,]\d{2})?)"
+#
+# O motor normaliza a observação (remove acento, minúsculo) antes de aplicar
+# os padrões — por isso os regex abaixo são escritos sem acento.
+_PADRAO_INSCRICAO = r"inscricao\D{1,10}?(\d+(?:[.,]\d{2})?)"
 _PADRAO_OFERTA = r"(\d+(?:[.,]\d{2})?)\D{1,10}?oferta"
 
 DEFAULT_GRUPOS = [
