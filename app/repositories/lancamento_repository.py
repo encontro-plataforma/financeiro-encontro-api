@@ -35,6 +35,12 @@ def _apply_filters(query, params):
     if params.descricao:
         query = query.filter(Lancamento.descricao.ilike(f"%{params.descricao}%"))
 
+    if params.valor_min is not None:
+        query = query.filter(Lancamento.valor >= params.valor_min)
+
+    if params.valor_max is not None:
+        query = query.filter(Lancamento.valor <= params.valor_max)
+
     # Excluir IDs já carregados (lazy load optimization)
     if params.exclude_ids:
         query = query.filter(~Lancamento.id.in_(params.exclude_ids))
