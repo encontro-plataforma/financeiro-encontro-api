@@ -30,11 +30,24 @@ def _apply_filters(query, params):
 
 
 def _montar_regra(data: dict) -> Regra:
+    """Uma Regra sem condição nunca pode estar ativa — nasce desativada e,
+    se todas as condições forem removidas numa edição, desativa de novo,
+    independente do que foi mandado no payload."""
     data = dict(data)
     condicoes_data = data.pop("condicoes", [])
+    if not condicoes_data:
+        data["ativo"] = False
     regra = Regra(**data)
     regra.condicoes = [RegraCondicao(**c) for c in condicoes_data]
     return regra
+
+
+def _sincronizar_ativo_grupo(grupo: RegraGrupo) -> None:
+    """Um RegraGrupo não pode ficar ativo sem nenhuma Regra ativa — desativa
+    sozinho quando a última regra ativa é removida/excluída. O inverso não é
+    automático: reativar uma regra não reativa o grupo sozinho."""
+    if grupo.ativo and not any(r.ativo for r in grupo.regras):
+        grupo.ativo = False
 
 
 class RegraRepository:
@@ -84,6 +97,7 @@ class RegraRepository:
         regras_data = data.pop("regras", [])
         grupo = RegraGrupo(**data)
         grupo.regras = [_montar_regra(r) for r in regras_data]
+        _sincronizar_ativo_grupo(grupo)
         db.add(grupo)
         db.commit()
         db.refresh(grupo)
@@ -102,6 +116,7 @@ class RegraRepository:
             # relationship cuida de apagar as Regra/RegraCondicao removidas.
             obj.regras = [_montar_regra(r) for r in regras_data]
 
+        _sincronizar_ativo_grupo(obj)
         db.commit()
         db.refresh(obj)
         return obj
