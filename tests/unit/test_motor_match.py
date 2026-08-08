@@ -8,6 +8,7 @@ from app.integracao.regras.motor_match import selecionar_lancamento
 def _pendencia(nome_pagador="Joao da Silva", pagamento="100"):
     return PendenciaAuditoria(
         id=1,
+        nome="Joao da Silva",
         nome_pagador=nome_pagador,
         dt_pagamento=date(2026, 1, 1),
         pagamento=Decimal(pagamento),

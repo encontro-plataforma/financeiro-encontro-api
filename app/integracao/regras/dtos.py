@@ -8,8 +8,12 @@ from app.models.enums import TipoDetalhamento
 
 @dataclass
 class PendenciaAuditoria:
-    """Encontreiro/Encontrista pendente sendo avaliado pela auditoria."""
+    """Encontreiro/Encontrista pendente sendo avaliado pela auditoria.
+    `nome` é o nome da própria pessoa (usado pelo modo de extração
+    NOME_NA_LISTA); `nome_pagador` é quem de fato pagou (usado só na Etapa A
+    — pode ser um responsável, diferente de `nome`)."""
     id: int
+    nome: str
     nome_pagador: Optional[str]
     dt_pagamento: date
     pagamento: Decimal

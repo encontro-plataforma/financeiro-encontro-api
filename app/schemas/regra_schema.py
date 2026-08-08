@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-from app.models.enums import EscopoRegraGrupo, TipoDetalhamento
+from app.models.enums import EscopoRegraGrupo, ModoExtracaoRegra, TipoDetalhamento
 
 
 class RegraCondicaoBase(BaseModel):
@@ -22,6 +22,7 @@ class RegraBase(BaseModel):
     ordem: int
     ativo: bool = True
     tipo_detalhamento_resultado: TipoDetalhamento
+    modo_extracao: ModoExtracaoRegra = ModoExtracaoRegra.TOKEN_VALOR
     condicoes: List[RegraCondicaoBase] = []
 
 

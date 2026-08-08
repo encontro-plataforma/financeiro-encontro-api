@@ -1,4 +1,4 @@
-from app.models.enums import TipoDetalhamento
+from app.models.enums import ModoExtracaoRegra, TipoDetalhamento
 from app.models.regra_grupo import RegraGrupo
 from app.repositories.regra_repository import _montar_regra, _sincronizar_ativo_grupo
 
@@ -38,6 +38,20 @@ def test_remover_todas_condicoes_desativa_regra():
     })
 
     assert regra.ativo is False
+
+
+def test_regra_nome_na_lista_ativa_mesmo_sem_condicao():
+    regra = _montar_regra({
+        "nome": "Inscrição (lista compartilhada)",
+        "ordem": 2,
+        "ativo": True,
+        "tipo_detalhamento_resultado": TipoDetalhamento.INSCRICAO_ENCONTREIRO,
+        "modo_extracao": ModoExtracaoRegra.NOME_NA_LISTA,
+        "condicoes": [],
+    })
+
+    assert regra.ativo is True
+    assert len(regra.condicoes) == 0
 
 
 def _grupo_com_regras(*, grupo_ativo: bool, regras_ativas: list):

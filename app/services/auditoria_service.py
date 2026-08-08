@@ -40,6 +40,7 @@ def _capacidade_restante(db: Session, lancamento: Lancamento) -> Decimal:
 def _montar_pendencia(pessoa) -> PendenciaAuditoria:
     return PendenciaAuditoria(
         id=pessoa.id,
+        nome=pessoa.nome,
         nome_pagador=pessoa.nome_pagador,
         dt_pagamento=pessoa.dt_pagamento,
         pagamento=_decimal(pessoa.pagamento),
@@ -65,10 +66,11 @@ def _selecionar_lancamento(db: Session, pendencia: PendenciaAuditoria) -> Option
         return None
 
     candidatos_dto = [
-        CandidatoLancamento(id=l.id, descricao=l.descricao, capacidade_restante=_capacidade_restante(db, l))
-        for l in candidatos_orm
+        CandidatoLancamento(id=candidato.id, descricao=candidato.descricao, capacidade_restante=_capacidade_restante(db, candidato))
+        for candidato in candidatos_orm
     ]
 
+    ## Parte A
     escolhido = selecionar_lancamento(pendencia, candidatos_dto)
     if not escolhido:
         return None
@@ -104,7 +106,7 @@ def _criar_detalhamentos(db: Session, lancamento: Lancamento, itens: list[ItemDe
 
 def _processar_pendentes(db: Session, modelo, tipo_principal: TipoDetalhamento):
     grupos = RegraRepository.list_ativos_por_escopos(
-        db, [_ESCOPO_POR_TIPO[tipo_principal], EscopoRegraGrupo.OFERTAS]
+        db, [_ESCOPO_POR_TIPO[tipo_principal]]
     )
 
     pendentes = (

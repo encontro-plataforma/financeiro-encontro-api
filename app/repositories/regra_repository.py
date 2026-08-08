@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session, selectinload
 
+from app.models.enums import ModoExtracaoRegra
 from app.models.regra import Regra
 from app.models.regra_condicao import RegraCondicao
 from app.models.regra_grupo import RegraGrupo
@@ -30,12 +31,15 @@ def _apply_filters(query, params):
 
 
 def _montar_regra(data: dict) -> Regra:
-    """Uma Regra sem condição nunca pode estar ativa — nasce desativada e,
-    se todas as condições forem removidas numa edição, desativa de novo,
-    independente do que foi mandado no payload."""
+    """Uma Regra TOKEN_VALOR sem condição nunca pode estar ativa — nasce
+    desativada e, se todas as condições forem removidas numa edição,
+    desativa de novo, independente do que foi mandado no payload. Uma Regra
+    NOME_NA_LISTA não depende de RegraCondicao para ativar — sua condição de
+    match é intrínseca ao modo (buscar o nome da própria pessoa no texto)."""
     data = dict(data)
     condicoes_data = data.pop("condicoes", [])
-    if not condicoes_data:
+    modo = data.get("modo_extracao", ModoExtracaoRegra.TOKEN_VALOR)
+    if modo == ModoExtracaoRegra.TOKEN_VALOR and not condicoes_data:
         data["ativo"] = False
     regra = Regra(**data)
     regra.condicoes = [RegraCondicao(**c) for c in condicoes_data]

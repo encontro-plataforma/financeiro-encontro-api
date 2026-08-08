@@ -3,18 +3,16 @@ from sqlalchemy.orm import Session
 from app.models.regra_grupo import RegraGrupo
 from app.models.regra import Regra
 from app.models.regra_condicao import RegraCondicao
-from app.models.enums import EscopoRegraGrupo, TipoDetalhamento
+from app.models.enums import EscopoRegraGrupo, ModoExtracaoRegra, TipoDetalhamento
 
 # Um grupo por escopo (nome sempre igual ao escopo — não faz sentido ter
-# dois grupos com o mesmo escopo). Cada grupo é avaliado só quando faz
-# sentido para o que está sendo processado:
-#   - EXTRACAO_ENCONTREIRO / EXTRACAO_ENCONTRISTA: só quando a pendência
-#     sendo auditada é do tipo correspondente (acha a inscrição da própria
-#     pessoa na observação).
-#   - OFERTAS: avaliado sempre, independente do tipo de pendência (não
-#     duplicado dentro dos grupos de inscrição).
-# Se nenhuma regra do(s) grupo(s) aplicável(is) casar, o motor cai no
-# fallback padrão (1 Detalhamento com o valor total pago).
+# dois grupos com o mesmo escopo). Cada grupo (EXTRACAO_ENCONTREIRO /
+# EXTRACAO_ENCONTRISTA) carrega, ele mesmo, tanto a(s) Regra(s) de Inscrição
+# quanto a de Oferta — não existe mais um RegraGrupo "OFERTAS" separado.
+# "Parar no primeiro match" vale por `tipo_detalhamento_resultado`: a Regra
+# de Inscrição e a de Oferta têm tipos diferentes, então são avaliadas
+# independentemente (podem gerar 2 Detalhamentos a partir da mesma
+# observação, ex.: "90 de inscrição e 10 de oferta").
 #
 # O motor normaliza a observação (remove acento, minúsculo) antes de aplicar
 # os padrões — por isso os regex abaixo são escritos sem acento. O valor pode
@@ -27,25 +25,43 @@ DEFAULT_GRUPOS = [
     {
         "escopo": EscopoRegraGrupo.EXTRACAO_ENCONTREIRO,
         "ordem": 10,
-        "regra_nome": "Inscrição",
-        "tipo_detalhamento_resultado": TipoDetalhamento.INSCRICAO_ENCONTREIRO,
-        "padrao_regex": _PADRAO_INSCRICAO,
+        "tipo_inscricao": TipoDetalhamento.INSCRICAO_ENCONTREIRO,
     },
     {
         "escopo": EscopoRegraGrupo.EXTRACAO_ENCONTRISTA,
         "ordem": 10,
-        "regra_nome": "Inscrição",
-        "tipo_detalhamento_resultado": TipoDetalhamento.INSCRICAO_ENCONTRISTA,
-        "padrao_regex": _PADRAO_INSCRICAO,
-    },
-    {
-        "escopo": EscopoRegraGrupo.OFERTAS,
-        "ordem": 20,
-        "regra_nome": "Oferta",
-        "tipo_detalhamento_resultado": TipoDetalhamento.OFERTA,
-        "padrao_regex": _PADRAO_OFERTA,
+        "tipo_inscricao": TipoDetalhamento.INSCRICAO_ENCONTRISTA,
     },
 ]
+
+
+def _regras_padrao(tipo_inscricao: TipoDetalhamento) -> list[dict]:
+    return [
+        {
+            "nome": "Inscrição",
+            "ordem": 1,
+            "ativo": True,
+            "tipo_detalhamento_resultado": tipo_inscricao,
+            "modo_extracao": ModoExtracaoRegra.TOKEN_VALOR,
+            "condicoes": [RegraCondicao(ordem=1, padrao_regex=_PADRAO_INSCRICAO)],
+        },
+        {
+            "nome": "Inscrição (lista compartilhada)",
+            "ordem": 2,
+            "ativo": True,
+            "tipo_detalhamento_resultado": tipo_inscricao,
+            "modo_extracao": ModoExtracaoRegra.NOME_NA_LISTA,
+            "condicoes": [],
+        },
+        {
+            "nome": "Oferta",
+            "ordem": 3,
+            "ativo": True,
+            "tipo_detalhamento_resultado": TipoDetalhamento.OFERTA,
+            "modo_extracao": ModoExtracaoRegra.TOKEN_VALOR,
+            "condicoes": [RegraCondicao(ordem=1, padrao_regex=_PADRAO_OFERTA)],
+        },
+    ]
 
 
 def seed_regras(db: Session):
@@ -64,15 +80,7 @@ def seed_regras(db: Session):
                 escopo=item["escopo"],
                 ordem=item["ordem"],
                 ativo=True,
-                regras=[
-                    Regra(
-                        nome=item["regra_nome"],
-                        ordem=1,
-                        ativo=True,
-                        tipo_detalhamento_resultado=item["tipo_detalhamento_resultado"],
-                        condicoes=[RegraCondicao(ordem=1, padrao_regex=item["padrao_regex"])],
-                    ),
-                ],
+                regras=[Regra(**r) for r in _regras_padrao(item["tipo_inscricao"])],
             )
             db.add(grupo)
             inserted = True
