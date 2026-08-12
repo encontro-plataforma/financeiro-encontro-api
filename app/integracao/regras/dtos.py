@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Optional
 
-from app.models.enums import TipoDetalhamento
+from app.models.enums import FormaPagamento, TipoDetalhamento
 
 
 @dataclass
@@ -26,6 +26,7 @@ class CandidatoLancamento:
     id: int
     descricao: str
     capacidade_restante: Decimal
+    forma_pagamento: FormaPagamento
 
 
 @dataclass

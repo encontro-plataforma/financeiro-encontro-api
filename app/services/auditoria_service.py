@@ -66,7 +66,12 @@ def _selecionar_lancamento(db: Session, pendencia: PendenciaAuditoria) -> Option
         return None
 
     candidatos_dto = [
-        CandidatoLancamento(id=candidato.id, descricao=candidato.descricao, capacidade_restante=_capacidade_restante(db, candidato))
+        CandidatoLancamento(
+            id=candidato.id,
+            descricao=candidato.descricao,
+            capacidade_restante=_capacidade_restante(db, candidato),
+            forma_pagamento=candidato.forma_pagamento,
+        )
         for candidato in candidatos_orm
     ]
 
