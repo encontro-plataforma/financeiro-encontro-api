@@ -97,6 +97,9 @@ class EncontreiroService:
 
     @staticmethod
     def _linha_para_dados(db: Session, row, is_new: bool) -> dict:
+        if row.equipe_nome == None or row.equipe_nome == "N/A":
+            return { "observacao": "CANCELADO" }
+        
         equipe_id = None
         if row.equipe_nome:
             equipe = EquipeRepository.get_by_nome(db, row.equipe_nome)
@@ -173,6 +176,9 @@ class EncontreiroService:
 
                 try:
                     dados = EncontreiroService._linha_para_dados(db, row, is_new=existente is None)
+                    if dados['observacao'] == 'CANCELADO':
+                        continue # DADO CANCELADO, IGNORAR LINHA
+                
                 except ValueError as exc:
                     raise ValueError(f"Linha {row.linha}: {exc}") from exc
 

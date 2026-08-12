@@ -50,3 +50,14 @@ class TipoDetalhamento(str, Enum):
     INSCRICAO_ENCONTRISTA = "INSCRICAO_ENCONTRISTA"
     OFERTA = "OFERTA"
     OUTRO  = "OUTRO"
+
+
+class EscopoRegraGrupo(str, Enum):
+    EXTRACAO_ENCONTREIRO = "EXTRACAO_ENCONTREIRO"
+    EXTRACAO_ENCONTRISTA = "EXTRACAO_ENCONTRISTA"
+    OFERTAS = "OFERTAS"
+
+
+class ModoExtracaoRegra(str, Enum):
+    TOKEN_VALOR = "TOKEN_VALOR"
+    NOME_NA_LISTA = "NOME_NA_LISTA"

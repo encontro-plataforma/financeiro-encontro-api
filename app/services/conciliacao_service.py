@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database.session import SessionLocal
 from app.integracao.conciliacao.conciliador import Conciliador
 from app.models.upload_file import UploadFile
+from app.services.auditoria_service import AuditoriaService
 from app.services.upload_file_service import UploadFileService
 from app.services.lancamento_service import LancamentoService
 from app.models.enums import FormaPagamento, StatusLancamento, StatusProcessamento, TipoLancamento
@@ -161,6 +162,8 @@ class ConciliacaoService:
                 db, upload_id, StatusProcessamento.PROCESSADO,
                 resultado_processamento=json.dumps(resultado_resumo, ensure_ascii=False),
             )
+
+            AuditoriaService.processar(db)
 
         except Exception as e:
             logger.exception("Erro ao processar extrato bancário (upload_id=%s)", upload_id)

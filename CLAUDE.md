@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Financeiro**: income/expense tracking (`Lancamento`), bank statement reconciliation via CSV import (Banco Inter), dashboards, and PDF reports.
 - **Secretaria**: registration management for **Encontreiros** (team members) and **Encontristas** (participants), grouped into **Equipes**/**Círculos**, also bulk-imported via CSV.
 
-The bridge between the two is **Detalhamento** (a line-item breakdown of what a `Lancamento` actually pays for) and **Auditoria** (a background matching pass that automatically links pending Encontreiro/Encontrista payments to the right bank `Lancamento`).
+The bridge between the two is **Detalhamento** (a line-item breakdown of what a `Lancamento` actually pays for) and **Auditoria** (a background matching pass that automatically links pending Encontreiro/Encontrista payments to the right bank `Lancamento`, driven by a configurable **motor de regras** — see "Detalhamento & Auditoria" below).
 
 This repository was extracted from the former `financeiro-encontro` monorepo (2026-07-19) and now lives alongside two sibling repositories under the `encontro-plataforma` GitHub org:
 
@@ -75,6 +75,7 @@ utils/        # Shared helpers (hash_utils, sort_utils)
 | `/encontreiros`  | `encontreiro_router.py` | CRUD on `Encontreiro` + `POST /conciliacao` (CSV import, background-processed).                  |
 | `/encontristas`  | `encontrista_router.py` | CRUD on `Encontrista` + `GET /padrinhos-disponiveis` + `POST /conciliacao` (CSV import).         |
 | `/detalhamentos` | `detalhamento_router.py`| CRUD on `Detalhamento` + `POST /auditoria` (triggers `AuditoriaService.processar`).               |
+| `/regras`        | `regra_router.py`       | CRUD on `RegraGrupo` (`GET /grupos`, `GET /grupos/all`, `GET /grupos/{id}`, `POST /grupos`, `PUT /grupos/{id}`, `DELETE /grupos/{id}`) — see "Detalhamento & Auditoria" below. |
 
 **Key domain models:**
 
@@ -85,6 +86,7 @@ utils/        # Shared helpers (hash_utils, sort_utils)
 - `Encontreiro`/`Encontrista`: Rich registration records (personal, contact, medical/emergency, payment fields). `Encontrista.padrinho_id` FKs to an `Encontreiro` (required sponsor). Both have a computed `auditado` (column_property EXISTS against `Detalhamento`)
 - `Equipe`/`Circulo`: Lookup groups — Encontreiros belong to an `Equipe` (with `acesso`: EDG/VERMELHO/AMARELO/VERDE), Encontristas belong to a `Circulo` (with a display `rgb` color)
 - `Detalhamento`: Line-item breakdown of what a `Lancamento` pays for — `tipo` is `INSCRICAO_ENCONTREIRO`/`INSCRICAO_ENCONTRISTA` (with `referencia_id` pointing to the person) or `OFERTA`/`OUTRO` (free-text `descricao`). One lançamento can have several (e.g. one PIX covering an inscription + an offering)
+- `RegraGrupo`/`Regra`/`RegraCondicao`: the configurable "motor de regras" that drives the Etapa B (Extração) of Auditoria — see "Detalhamento & Auditoria" below for the full model
 
 ### Authentication
 
@@ -110,7 +112,18 @@ After bank import, `Lancamento` records are `NAO_CONCILIADO`. Manual reconciliat
 
 A `Lancamento` isn't automatically "who paid for what" — that link is a `Detalhamento`. Validation (`DetalhamentoService`) enforces the sum of a lançamento's detalhamentos never exceeds its `valor` (tolerance `0.01`).
 
-`POST /detalhamentos/auditoria` (`AuditoriaService.processar`) is a batch matching pass: for every Encontreiro/Encontrista with a pending payment (`pagamento > 0`, `dt_pagamento` set, not yet `auditado`), it looks for a same-day RECEITA `Lancamento` whose remaining capacity (`valor - soma_detalhamentos`) exactly fits their `pagamento`; if exactly one candidate matches (tie-broken by payer name in the descrição/observação), it auto-creates the linking `Detalhamento`. It also scans the person's free-text `observacao` for "oferta"/"encontreiro"/"encontrista" keywords to auto-create *extra* detalhamentos on the same lançamento (e.g. a bundled offering, or another person's inscription named in the note). Returns counts (`avaliados`, `vinculados_encontreiro`, `vinculados_encontrista`, `detalhamentos_extras_via_observacao`, `nao_auditados`, `detalhes_nao_auditados`, `mensagem`).
+`POST /detalhamentos/auditoria` (`AuditoriaService.processar`, `app/services/auditoria_service.py`) is a batch matching pass over every Encontreiro/Encontrista with a pending payment (`pagamento > 0`, `dt_pagamento` set, not yet `auditado`). It also runs automatically after a successful bank/encontreiro/encontrista CSV import (`status == PROCESSADO`), best-effort (a failure here never flips the upload's own status). Per pendência, it runs two conceptually separate steps:
+
+- **Etapa A — Match** (`app/integracao/regras/motor_match.py`, fixed algorithm, not configurable): finds same-day RECEITA `Lancamento` candidates whose remaining capacity (`valor - soma_detalhamentos`) fits the `pagamento` and whose `nome_pagador` (case/accent-insensitive) appears in the lançamento's `descricao` (never `observacao`). If the pendência's `observacao` mentions a recognizable forma de pagamento (pix/dinheiro/cartão de crédito/cartão de débito — "cartão" alone means crédito), candidates are filtered once more by matching `Lancamento.forma_pagamento`, so a pix-worded observação never links to a card lançamento. Ties broken by lowest `Lancamento.id`.
+- **Etapa B — Extração** (`app/integracao/regras/motor_extracao.py`, configurable via the `motor de regras`): once a lançamento is found, reads the pendência's own `observacao` to decide how many `Detalhamento`s to create and of what type/value, using the active `RegraGrupo`/`Regra`/`RegraCondicao` tree for the pendência's escopo (`RegraRepository.list_ativos_por_escopos`). If nothing matches, falls back to 1 Detalhamento for the full `pagamento` (today's implicit behavior).
+
+**Motor de regras model**: one `RegraGrupo` per `EscopoRegraGrupo` (`EXTRACAO_ENCONTREIRO`, `EXTRACAO_ENCONTRISTA` — `OFERTAS` is a legacy escopo value kept in the enum for backward compatibility but no longer seeded/consulted; Oferta rules now live inside the same group as Inscrição). Each `Regra` produces at most 1 `Detalhamento` and has a `modo_extracao`:
+- `TOKEN_VALOR` (default): all of its `RegraCondicao.padrao_regex` must match (AND) against the normalized `observacao` (accents stripped, lowercased); the value comes from the first non-empty capture group, in order.
+- `NOME_NA_LISTA`: ignores `RegraCondicao` entirely — matches the first word of the pendência's own `nome` (not `nome_pagador`) in the observação and captures the value right after it. Covers a single payment covering several named inscriptions in one shared observação (e.g. `"...para Luiza Rochelle de 100 reais, Samuel Augusto de 100 reais..."`).
+
+"Stop on first match" applies **per `tipo_detalhamento_resultado`**, not per group: within the same tipo (e.g. two Inscrição rules), only the first Regra (by `ordem`) that matches counts; different tipos (Inscrição vs Oferta) are evaluated independently and can both fire from the same observação. A `Regra` can only be `ativo` if it has ≥1 `RegraCondicao` (except `NOME_NA_LISTA`, which never needs one) — enforced both in the repository (`_montar_regra`/`_sincronizar_ativo_grupo` in `app/repositories/regra_repository.py`) and in the frontend UI. A `RegraGrupo` can't be `ativo` without ≥1 `Regra` ativa; this only ever auto-*deactivates* the group, never auto-activates it.
+
+Returns counts (`avaliados`, `vinculados_encontreiro`, `vinculados_encontrista`, `detalhamentos_extras_via_observacao`, `nao_auditados`, `detalhes_nao_auditados`, `mensagem`).
 
 ### Dashboard Endpoints
 

@@ -6,3 +6,6 @@ from .circulo import Circulo
 from .encontreiro import Encontreiro
 from .encontrista import Encontrista
 from .detalhamento import Detalhamento
+from .regra_grupo import RegraGrupo
+from .regra import Regra
+from .regra_condicao import RegraCondicao

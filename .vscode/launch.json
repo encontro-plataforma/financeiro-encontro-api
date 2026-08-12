@@ -8,6 +8,9 @@
             "python": "${workspaceFolder}/venv/Scripts/python.exe",
             "cwd": "${workspaceFolder}",
             "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONNOUSERSITE": "1"
+            },
             "module": "uvicorn",
             "args": [
                 "app.main:app",
@@ -15,8 +18,8 @@
                 "0.0.0.0"
             ],
             "console": "integratedTerminal",
-            "justMyCode": false,
-            "subProcess": true
+            "justMyCode": true,
+            "subProcess": false
         },
         {
             "name": "Attach to uvicorn",

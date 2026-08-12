@@ -14,4 +14,6 @@ class LancamentoFilterDto(QueryParams):
     finalidade_ids: Optional[List[int]] = None    # lista — injetada pelo router (dashboard)
     forma_pagamento: Optional[List[FormaPagamento]] = None  # injetada pelo router
     descricao: Optional[str] = None
+    valor_min: Optional[float] = None
+    valor_max: Optional[float] = None
     exclude_ids: Optional[List[int]] = None
