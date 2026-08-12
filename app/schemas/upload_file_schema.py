@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 
-from app.models.enums import StatusProcessamento
+from app.models.enums import StatusProcessamento, TipoOrigemUpload
 
 
 class UploadFileResponse(BaseModel):
@@ -10,6 +10,7 @@ class UploadFileResponse(BaseModel):
     tamanho_bytes: int | None
     processado_em: datetime
     status: StatusProcessamento
+    tipo_origem: TipoOrigemUpload | None
     error_code: str | None
     error_message: str | None
     resultado_processamento: str | None
