@@ -69,6 +69,7 @@ def _selecionar_lancamento(db: Session, pendencia: PendenciaAuditoria) -> Option
         CandidatoLancamento(
             id=candidato.id,
             descricao=candidato.descricao,
+            valor=_decimal(candidato.valor),
             capacidade_restante=_capacidade_restante(db, candidato),
             forma_pagamento=candidato.forma_pagamento,
         )
@@ -141,7 +142,23 @@ def _processar_pendentes(db: Session, modelo, tipo_principal: TipoDetalhamento):
             })
             continue
 
-        itens = extrair_detalhamentos(pendencia, grupos, tipo_principal)
+        capacidade_antes = _capacidade_restante(db, lancamento)
+        permite_fallback = capacidade_antes >= (_decimal(lancamento.valor) - _TOLERANCIA)
+
+        itens = extrair_detalhamentos(pendencia, grupos, tipo_principal, permite_fallback)
+
+        if not itens:
+            nao_auditados.append({
+                "tipo": tipo_principal.value,
+                "id": pessoa.id,
+                "nome": pessoa.nome,
+                "motivo": (
+                    "Lançamento já possui outra inscrição vinculada e a observação "
+                    "não permite identificar o valor desta pessoa."
+                ),
+            })
+            continue
+
         erro = _criar_detalhamentos(db, lancamento, itens)
 
         if erro:

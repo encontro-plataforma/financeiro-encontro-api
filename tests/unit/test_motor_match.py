@@ -17,8 +17,20 @@ def _pendencia(nome_pagador="Joao da Silva", pagamento="100", observacao=None):
     )
 
 
-def _candidato(id, descricao, capacidade_restante, forma_pagamento=FormaPagamento.PIX):
-    return CandidatoLancamento(id=id, descricao=descricao, capacidade_restante=Decimal(capacidade_restante), forma_pagamento=forma_pagamento)
+def _candidato(id, descricao, capacidade_restante, forma_pagamento=FormaPagamento.PIX, valor=None):
+    """`valor` (total original do lançamento) por padrão é igual à
+    capacidade_restante -- reproduz um lançamento "intocado" (ninguém ainda
+    consumiu nada dele), que é o caso da maioria dos testes existentes.
+    Passe `valor` explicitamente pra simular um lançamento já parcialmente
+    consumido por outra pessoa (valor > capacidade_restante)."""
+    capacidade = Decimal(capacidade_restante)
+    return CandidatoLancamento(
+        id=id,
+        descricao=descricao,
+        valor=Decimal(valor) if valor is not None else capacidade,
+        capacidade_restante=capacidade,
+        forma_pagamento=forma_pagamento,
+    )
 
 
 def test_unico_candidato_valido_casa():
@@ -108,6 +120,27 @@ def test_cartao_sozinho_equivale_a_credito():
     credito = _candidato(2, "JOAO DA SILVA", "100", FormaPagamento.CARTAO_CREDITO)
 
     assert selecionar_lancamento(pendencia, [debito, credito]) is credito
+
+
+def test_candidato_parcialmente_consumido_ainda_e_valido():
+    # Cenário de inscrição múltipla: lançamento de 180 já tem um Detalhamento
+    # de 90 (de outra pessoa), sobrando 90 de capacidade. A pendência ainda
+    # registra o pagamento de referência do grupo inteiro (180) -- o match
+    # usa o VALOR ORIGINAL do lançamento (180), não a capacidade restante.
+    pendencia = _pendencia(nome_pagador="Responsavel", pagamento="180")
+    candidato = _candidato(1, "PIX RESPONSAVEL", "90", valor="180")
+
+    assert selecionar_lancamento(pendencia, [candidato]) is candidato
+
+
+def test_candidato_totalmente_consumido_e_descartado():
+    # Mesmo com o valor original batendo, um lançamento sem nenhuma
+    # capacidade sobrando (já 100% vinculado a outras pessoas) não pode
+    # mais ser escolhido.
+    pendencia = _pendencia(nome_pagador="Responsavel", pagamento="180")
+    candidato = _candidato(1, "PIX RESPONSAVEL", "0", valor="180")
+
+    assert selecionar_lancamento(pendencia, [candidato]) is None
 
 
 def test_cartao_de_debito_nao_e_mascarado_pelo_padrao_generico():

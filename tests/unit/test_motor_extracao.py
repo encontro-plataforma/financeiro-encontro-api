@@ -164,6 +164,41 @@ def test_nome_na_lista_nao_bate_cai_no_fallback():
     assert itens[0].valor == Decimal("70")
 
 
+def test_permite_fallback_false_sem_padrao_reconhecido_nao_cria_nada():
+    # Cenário de inscrição múltipla: o lançamento já tem outro Detalhamento
+    # (permite_fallback=False), e a observação não menciona esta pessoa --
+    # não deve inventar um Detalhamento usando o pagamento de referência
+    # (que aqui representaria o total do grupo, não o valor real dela).
+    pendencia = _pendencia(pagamento="180", nome="Alguem Ausente", observacao="Pagamento via pix de 180 reais")
+    grupos = [_grupo_inscricao_encontreiro()]
+
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO, permite_fallback=False,
+    )
+
+    assert itens == []
+
+
+def test_permite_fallback_false_nao_afeta_regra_que_bate():
+    # Quando a regra realmente encontra o valor da pessoa na observação,
+    # permite_fallback=False não muda nada -- o fallback nunca chega a ser
+    # avaliado.
+    observacao = (
+        "Pagamento via pix de 180 para Kaua Victor dos Santos Silva de 90 reais "
+        "e Schynaider Sthephane Araujo da Silva Santos de 90 reais"
+    )
+    grupos = [_grupo_inscricao_encontreiro()]
+    pendencia = _pendencia(pagamento="180", nome="Schynaider Sthephane Araujo da Silva Santos", observacao=observacao)
+
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO, permite_fallback=False,
+    )
+
+    assert len(itens) == 1
+    assert itens[0].valor == Decimal("90")
+    assert itens[0].referencia_id == pendencia.id
+
+
 def test_duas_regras_do_mesmo_tipo_so_a_primeira_em_ordem_conta():
     grupo = RegraGrupo(
         nome="EXTRACAO_ENCONTREIRO", escopo="EXTRACAO_ENCONTREIRO", ordem=10, ativo=True,

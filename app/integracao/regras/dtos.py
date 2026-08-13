@@ -22,9 +22,13 @@ class PendenciaAuditoria:
 
 @dataclass
 class CandidatoLancamento:
-    """Lancamento RECEITA na mesma data da pendência, candidato ao Match."""
+    """Lancamento RECEITA na mesma data da pendência, candidato ao Match.
+    `valor` é o total original do lançamento (estável mesmo depois que outras
+    pessoas já consumiram parte dele); `capacidade_restante` é o que ainda
+    sobra para novos Detalhamentos."""
     id: int
     descricao: str
+    valor: Decimal
     capacidade_restante: Decimal
     forma_pagamento: FormaPagamento
 

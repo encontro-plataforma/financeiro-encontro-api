@@ -70,13 +70,21 @@ def extrair_detalhamentos(
     pendencia: PendenciaAuditoria,
     grupos: list,
     tipo_inscricao_padrao: TipoDetalhamento,
+    permite_fallback: bool = True,
 ) -> list[ItemDetalhamento]:
     """Etapa B (Extração): lê `pendencia.observacao` e avalia as Regras
     ativas dos grupos aplicáveis, agrupadas por `tipo_detalhamento_resultado`
     — dentro de cada tipo, para na primeira Regra (em ordem) que bater;
     tipos diferentes (ex. Inscrição vs Oferta) são avaliados independentemente
-    e podem gerar Detalhamentos ao mesmo tempo. Se nenhum tipo bateu, cai no
-    fallback: 1 item com o valor total pago, vinculado à própria pendência."""
+    e podem gerar Detalhamentos ao mesmo tempo. Se nenhum tipo bateu e
+    `permite_fallback` é True, cai no fallback: 1 item com o valor total
+    pago, vinculado à própria pendência. `permite_fallback` deve vir False
+    quando o lançamento já tem outro Detalhamento vinculado (pagamento
+    compartilhado entre várias pessoas) — nesse caso `pendencia.pagamento` é
+    só uma referência ao total do grupo, não ao valor real desta pessoa, e
+    usá-lo às cegas criaria um Detalhamento errado. Sem regra que consiga
+    extrair o valor certo da observação, a função devolve lista vazia e
+    nada é criado."""
     texto = remover_acentos(pendencia.observacao or "").lower()
 
     regras_por_tipo: dict = {}
@@ -97,7 +105,7 @@ def extrair_detalhamentos(
             itens.append(ItemDetalhamento(tipo=tipo, valor=valor, referencia_id=referencia_id))
             break
 
-    if not itens:
+    if not itens and permite_fallback:
         itens.append(ItemDetalhamento(
             tipo=tipo_inscricao_padrao,
             valor=pendencia.pagamento,
