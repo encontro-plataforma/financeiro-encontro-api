@@ -34,7 +34,7 @@ class EquipeRepository:
         query = db.query(Equipe)
         query = _apply_filters(query, params)
         query = apply_sort(query, Equipe, params.sort, SORT_FIELDS, DEFAULT_SORT)
-        return query.offset(params.skip).limit(params.limit).all()
+        return query.all()
 
     @staticmethod
     def list_with_count(db: Session, params):

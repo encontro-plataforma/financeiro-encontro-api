@@ -84,7 +84,7 @@ class EncontreiroRepository:
         query = db.query(Encontreiro).options(joinedload(Encontreiro.equipe))
         query = _apply_filters(query, params)
         query = apply_sort(query, Encontreiro, params.sort, SORT_FIELDS, DEFAULT_SORT)
-        return query.offset(params.skip).limit(params.limit).all()
+        return query.all()
 
     @staticmethod
     def list_with_count(db: Session, params):

@@ -64,7 +64,7 @@ class UploadFileRepository:
             DEFAULT_SORT
         )
 
-        return query.offset(params.skip).limit(params.limit).all()
+        return query.all()
 
     @staticmethod
     def list_with_count(db: Session, params):

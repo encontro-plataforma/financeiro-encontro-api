@@ -94,4 +94,16 @@ class EspecieParser(BaseParser):
                         "descricao": None,
                     })
 
+        if not header_found:
+            # Cabeçalho nunca reconhecido é quase sempre um CSV salvo com BOM
+            # (comum ao exportar do Excel como "CSV UTF-8") -- o BOM gruda no
+            # primeiro campo do cabeçalho ("data" vira "﻿data") e a
+            # comparação exata falha silenciosamente, fazendo o arquivo
+            # inteiro ser ignorado sem nenhum erro reportado.
+            raise ValueError(
+                "Cabeçalho do CSV não reconhecido. Verifique se o arquivo foi "
+                "salvo com o charset UTF-8 (sem BOM) e segue exatamente o "
+                f"formato esperado: {';'.join(_CABECALHO_ESPERADO).lower()}"
+            )
+
         return result

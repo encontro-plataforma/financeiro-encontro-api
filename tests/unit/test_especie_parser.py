@@ -1,5 +1,7 @@
 from decimal import Decimal
 
+import pytest
+
 from app.integracao.conciliacao.parsers.especie_parser import EspecieParser
 
 _CABECALHO = "data;tipo;nome;descricao;valor;observacao"
@@ -63,6 +65,19 @@ def test_linhas_identicas_ganham_sufixo_ocor_na_observacao():
     assert len(linhas) == 2
     assert linhas[0].observacao is None
     assert linhas[1].observacao == "ocor: 2"
+
+
+def test_cabecalho_nao_reconhecido_leva_a_erro_mencionando_utf8():
+    """Reproduz o caso real: um CSV salvo pelo Excel como "UTF-8" costuma
+    incluir um BOM (EF BB BF) no início. Decodificado com "utf-8" puro, o BOM
+    vira o caractere \\ufeff colado no primeiro campo do cabeçalho
+    ("\\ufeffdata"), que nunca bate com o cabeçalho esperado -- em vez de
+    ignorar o arquivo inteiro em silêncio, o parser deve falhar com uma
+    mensagem clara."""
+    conteudo_com_bom = ("﻿" + _CABECALHO + "\n10/08/2026;OFERTA;;Oferta;50,00;\n")
+
+    with pytest.raises(ValueError, match="UTF-8"):
+        EspecieParser().parse(conteudo_com_bom)
 
 
 def test_reprocessar_mesmo_conteudo_reproduz_mesma_sequencia():
