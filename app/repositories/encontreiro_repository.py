@@ -5,6 +5,7 @@ from app.models.equipe import Equipe
 from app.utils.sort_utils import apply_sort
 
 SORT_FIELDS = {
+    "id": Encontreiro.id,
     "nome": Encontreiro.nome,
     "apelido": Encontreiro.apelido,
     "dt_inscricao": Encontreiro.dt_inscricao,

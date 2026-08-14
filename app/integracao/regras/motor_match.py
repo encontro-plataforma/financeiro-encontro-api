@@ -20,19 +20,20 @@ _TOKENS_FORMA_PAGAMENTO = [
 ]
 
 
-def _forma_pagamento_mencionada(texto_normalizado: str) -> Optional[FormaPagamento]:
+def _forma_pagamento_mencionada(texto_normalizado: str) -> FormaPagamento:
     for padrao, forma in _TOKENS_FORMA_PAGAMENTO:
         if padrao.search(texto_normalizado):
             return forma
-    return None
+    return FormaPagamento.PIX
 
 
 def selecionar_lancamento(
     pendencia: PendenciaAuditoria,
     candidatos: list[CandidatoLancamento],
 ) -> Optional[CandidatoLancamento]:
-    """Etapa A (Match): entre os candidatos (já filtrados por mesma data e
-    tipo RECEITA na consulta ao banco), escolhe o lançamento cujo VALOR
+    """Etapa A (Match): entre os candidatos (já filtrados por mesma data,
+    tipo RECEITA, status NAO_CONCILIADO e valor mínimo na consulta ao banco),
+    escolhe o lançamento cujo VALOR
     ORIGINAL comporta o valor de referência da pendência e cujo nome do
     pagador aparece na descrição do lançamento (comparação sempre
     case-insensitive e sem acento). Usar o valor original (não a capacidade
@@ -41,11 +42,13 @@ def selecionar_lancamento(
     mesmo candidato mesmo depois que a primeira já consumiu parte dele — só
     a Etapa B decide, lendo a observação, quanto cabe a cada uma. Ainda
     assim, um lançamento já 100% consumido (sem nenhuma capacidade sobrando)
-    é descartado. Se a observação da pendência mencionar uma forma de
-    pagamento reconhecível (pix/dinheiro/cartão de crédito/cartão de
-    débito), filtra os candidatos mais uma vez por essa forma — evita ligar,
-    por exemplo, um lançamento via cartão a uma inscrição paga via pix. Em
-    caso de empate, vence o de menor id (mais antigo)."""
+    é descartado. Filtra os candidatos pela forma de pagamento mencionada na
+    observação da pendência (pix/dinheiro/cartão de crédito/cartão de
+    débito) — evita ligar, por exemplo, um lançamento via cartão a uma
+    inscrição paga via pix. Se a observação não mencionar nenhuma forma
+    reconhecível, assume PIX (a forma mais comum) em vez de deixar o
+    candidato sem esse filtro. Em caso de empate, vence o de menor id (mais
+    antigo)."""
     if not pendencia.nome_pagador:
         return None
 
@@ -54,7 +57,7 @@ def selecionar_lancamento(
     validos = [
         candidato for candidato in candidatos
         if candidato.valor >= pendencia.pagamento - _TOLERANCIA
-        and candidato.capacidade_restante > _TOLERANCIA
+        and (candidato.valor - candidato.soma_detalhamentos) > _TOLERANCIA
         and nome_normalizado in remover_acentos(candidato.descricao or "").lower()
     ]
 
@@ -62,10 +65,9 @@ def selecionar_lancamento(
         return None
 
     texto_observacao = remover_acentos(pendencia.observacao or "").lower()
-    forma_mencionada = _forma_pagamento_mencionada(texto_observacao)
-    if forma_mencionada is not None:
-        validos = [c for c in validos if c.forma_pagamento == forma_mencionada]
-        if not validos:
-            return None
+    forma_assumida = _forma_pagamento_mencionada(texto_observacao)
+    validos = [c for c in validos if c.forma_pagamento == forma_assumida]
+    if not validos:
+        return None
 
     return min(validos, key=lambda candidato: candidato.id)

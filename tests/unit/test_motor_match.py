@@ -24,11 +24,12 @@ def _candidato(id, descricao, capacidade_restante, forma_pagamento=FormaPagament
     Passe `valor` explicitamente pra simular um lançamento já parcialmente
     consumido por outra pessoa (valor > capacidade_restante)."""
     capacidade = Decimal(capacidade_restante)
+    valor_final = Decimal(valor) if valor is not None else capacidade
     return CandidatoLancamento(
         id=id,
         descricao=descricao,
-        valor=Decimal(valor) if valor is not None else capacidade,
-        capacidade_restante=capacidade,
+        valor=valor_final,
+        soma_detalhamentos=valor_final - capacidade,
         forma_pagamento=forma_pagamento,
     )
 
@@ -88,12 +89,18 @@ def test_sem_candidatos_nao_casa():
     assert selecionar_lancamento(pendencia, []) is None
 
 
-def test_sem_observacao_nao_filtra_por_forma_pagamento():
-    # comportamento atual preservado quando a observação não menciona nada
+def test_sem_observacao_assume_pix_e_casa_com_candidato_pix():
+    pendencia = _pendencia(observacao=None)
+    candidato = _candidato(1, "PIX JOAO DA SILVA", "100", FormaPagamento.PIX)
+
+    assert selecionar_lancamento(pendencia, [candidato]) is candidato
+
+
+def test_sem_observacao_assume_pix_e_nao_casa_com_outra_forma():
     pendencia = _pendencia(observacao=None)
     candidato = _candidato(1, "PIX JOAO DA SILVA", "100", FormaPagamento.CARTAO_CREDITO)
 
-    assert selecionar_lancamento(pendencia, [candidato]) is candidato
+    assert selecionar_lancamento(pendencia, [candidato]) is None
 
 
 def test_unico_candidato_com_forma_errada_nao_casa():

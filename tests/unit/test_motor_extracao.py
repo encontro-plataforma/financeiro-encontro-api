@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from app.database.seeds.seed_regras import _PADRAO_INSCRICAO, _PADRAO_OFERTA
 from app.integracao.regras.dtos import PendenciaAuditoria
-from app.integracao.regras.motor_extracao import extrair_detalhamentos
+from app.integracao.regras.motor_extracao import _valor_por_token_de_nome, extrair_detalhamentos
 from app.models.enums import ModoExtracaoRegra, TipoDetalhamento
 from app.models.regra import Regra
 from app.models.regra_condicao import RegraCondicao
@@ -152,6 +152,39 @@ def test_nome_na_lista_aceita_so_o_primeiro_nome():
 
     assert len(itens) == 1
     assert itens[0].valor == Decimal("100")
+
+
+def test_nome_na_lista_aceita_pedaco_parcial_de_palavra_do_nome():
+    # "ourado" é um pedaço de "Dourado" -- ainda assim aceito como parte do nome.
+    valor = _valor_por_token_de_nome("Anderson Dourado Cunha", "pago por anderson ourado cunha 100 reais")
+    assert valor == Decimal("100")
+
+
+def test_nome_na_lista_rejeita_palavra_que_nao_pertence_ao_nome():
+    # "santos" não está contido em "Anderson Dourado Cunha" -- pode ser outra
+    # pessoa (ex.: "Anderson Santos") mencionada na mesma observação, então
+    # o trecho fica ambíguo e não deve casar.
+    valor = _valor_por_token_de_nome("Anderson Dourado Cunha", "pago por anderson santos 100 reais")
+    assert valor is None
+
+
+def test_nome_na_lista_com_conector_que_tambem_e_palavra_do_nome():
+    # "de" aqui é ao mesmo tempo conector comum E parte legítima do nome
+    # ("Luiz DE Miranda Santos") -- qualquer combinação abaixo, ancorada em
+    # "Luiz", deve casar; só falha quando "Luiz" nem aparece no texto.
+    nome = "Luiz de Miranda Santos"
+
+    for texto, esperado in [
+        ("para luiz de miranda de 100 reais", "100"),
+        ("para luiz santos de 100 reais", "100"),
+        ("para luiz de 100 reais", "100"),
+        ("para luiz miranda de 100 reais", "100"),
+        ("para miranda de 100 reais", None),
+        ("para miranda santos de 100 reais", None),
+        ("para santos de 100 reais", None),
+    ]:
+        valor = _valor_por_token_de_nome(nome, texto)
+        assert valor == (Decimal(esperado) if esperado else None), texto
 
 
 def test_nome_na_lista_nao_bate_cai_no_fallback():

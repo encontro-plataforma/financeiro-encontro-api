@@ -7,6 +7,7 @@ from app.models.circulo import Circulo
 from app.utils.sort_utils import apply_sort
 
 SORT_FIELDS = {
+    "id": Encontrista.id,
     "nome": Encontrista.nome,
     "apelido": Encontrista.apelido,
     "dt_entrega": Encontrista.dt_entrega,

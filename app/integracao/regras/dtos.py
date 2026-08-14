@@ -24,12 +24,13 @@ class PendenciaAuditoria:
 class CandidatoLancamento:
     """Lancamento RECEITA na mesma data da pendência, candidato ao Match.
     `valor` é o total original do lançamento (estável mesmo depois que outras
-    pessoas já consumiram parte dele); `capacidade_restante` é o que ainda
-    sobra para novos Detalhamentos."""
+    pessoas já consumiram parte dele); `soma_detalhamentos` é o que já foi
+    consumido por Detalhamentos existentes (capacidade restante = valor -
+    soma_detalhamentos)."""
     id: int
     descricao: str
     valor: Decimal
-    capacidade_restante: Decimal
+    soma_detalhamentos: Decimal
     forma_pagamento: FormaPagamento
 
 

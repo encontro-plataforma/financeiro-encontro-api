@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Optional
+from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -10,10 +10,11 @@ from app.integracao.regras.motor_match import selecionar_lancamento
 from app.models.detalhamento import Detalhamento
 from app.models.encontreiro import Encontreiro
 from app.models.encontrista import Encontrista
-from app.models.enums import EscopoRegraGrupo, TipoDetalhamento, TipoLancamento
+from app.models.enums import EscopoRegraGrupo, StatusLancamento, TipoDetalhamento, TipoLancamento
 from app.models.lancamento import Lancamento
 from app.repositories.regra_repository import RegraRepository
 from app.services.detalhamento_service import DetalhamentoService
+from app.utils.decimal_utils import to_decimal
 
 _TOLERANCIA = Decimal("0.01")
 
@@ -23,37 +24,25 @@ _ESCOPO_POR_TIPO = {
 }
 
 
-def _decimal(valor) -> Decimal:
-    return Decimal(str(valor)) if valor is not None else Decimal("0")
-
-
-def _capacidade_restante(db: Session, lancamento: Lancamento) -> Decimal:
-    consumido = (
-        db.query(Detalhamento)
-        .filter(Detalhamento.lancamento_id == lancamento.id)
-        .all()
-    )
-    total_consumido = sum((d.valor for d in consumido), Decimal("0"))
-    return _decimal(lancamento.valor) - total_consumido
-
-
-def _montar_pendencia(pessoa) -> PendenciaAuditoria:
+def _to_pendencia_auditoria(inscricao_pendente) -> PendenciaAuditoria:
     return PendenciaAuditoria(
-        id=pessoa.id,
-        nome=pessoa.nome,
-        nome_pagador=pessoa.nome_pagador,
-        dt_pagamento=pessoa.dt_pagamento,
-        pagamento=_decimal(pessoa.pagamento),
-        observacao=pessoa.observacao,
+        id=inscricao_pendente.id,
+        nome=inscricao_pendente.nome,
+        nome_pagador=inscricao_pendente.nome_pagador,
+        dt_pagamento=inscricao_pendente.dt_pagamento,
+        pagamento=to_decimal(inscricao_pendente.pagamento),
+        observacao=inscricao_pendente.observacao,
     )
 
 
-def _buscar_candidatos(db: Session, dt_pagamento) -> list[Lancamento]:
+def _buscar_candidatos(db: Session, dt_pagamento, pagamento: Decimal) -> list[Lancamento]:
     return (
         db.query(Lancamento)
         .filter(
             Lancamento.data_pagamento == dt_pagamento,
             Lancamento.tipo == TipoLancamento.RECEITA,
+            Lancamento.status == StatusLancamento.NAO_CONCILIADO,
+            Lancamento.valor >= pagamento - _TOLERANCIA,
         )
         .all()
     )
@@ -61,7 +50,7 @@ def _buscar_candidatos(db: Session, dt_pagamento) -> list[Lancamento]:
 
 def _selecionar_lancamento(db: Session, pendencia: PendenciaAuditoria) -> Optional[Lancamento]:
     """Etapa A (Match): decide qual Lancamento corresponde à pendência."""
-    candidatos_orm = _buscar_candidatos(db, pendencia.dt_pagamento)
+    candidatos_orm = _buscar_candidatos(db, pendencia.dt_pagamento, pendencia.pagamento)
     if not candidatos_orm:
         return None
 
@@ -69,8 +58,8 @@ def _selecionar_lancamento(db: Session, pendencia: PendenciaAuditoria) -> Option
         CandidatoLancamento(
             id=candidato.id,
             descricao=candidato.descricao,
-            valor=_decimal(candidato.valor),
-            capacidade_restante=_capacidade_restante(db, candidato),
+            valor=to_decimal(candidato.valor),
+            soma_detalhamentos=to_decimal(candidato.soma_detalhamentos),
             forma_pagamento=candidato.forma_pagamento,
         )
         for candidato in candidatos_orm
@@ -88,7 +77,7 @@ def _selecionar_lancamento(db: Session, pendencia: PendenciaAuditoria) -> Option
 def _criar_detalhamentos(db: Session, lancamento: Lancamento, itens: list[ItemDetalhamento]) -> Optional[str]:
     """Cria os itens da Etapa B (Extração). Se a soma exceder a capacidade
     restante do lançamento, não cria nada e devolve o motivo do erro."""
-    capacidade = _capacidade_restante(db, lancamento)
+    capacidade = to_decimal(lancamento.valor) - to_decimal(lancamento.soma_detalhamentos)
     soma_itens = sum((item.valor for item in itens), Decimal("0"))
     if soma_itens > capacidade + _TOLERANCIA:
         return (
@@ -110,48 +99,53 @@ def _criar_detalhamentos(db: Session, lancamento: Lancamento, itens: list[ItemDe
     return None
 
 
-def _processar_pendentes(db: Session, modelo, tipo_principal: TipoDetalhamento):
-    grupos = RegraRepository.list_ativos_por_escopos(
-        db, [_ESCOPO_POR_TIPO[tipo_principal]]
-    )
+def _processar_pendentes(db: Session, modelo: Encontreiro | Encontrista, tipo_detalhamento: TipoDetalhamento):
+    vinculados = 0
+    nao_auditados = []
 
-    pendentes = (
+    insc_pendentes: List[Encontreiro | Encontrista] = (
         db.query(modelo)
         .filter(
+            modelo.auditado.is_(False),
+            modelo.dt_pagamento.isnot(None),
             modelo.pagamento.isnot(None),
             modelo.pagamento > 0,
-            modelo.dt_pagamento.isnot(None),
-            modelo.auditado.is_(False),
         )
         .order_by(modelo.dt_pagamento)
         .all()
     )
 
-    vinculados = 0
-    nao_auditados = []
-
-    for pessoa in pendentes:
-        pendencia = _montar_pendencia(pessoa)
-        lancamento = _selecionar_lancamento(db, pendencia)
+    for inscricao_pendente in insc_pendentes:
+        ## 1 - Match de lancamento (Etapa A)
+        pendencia_auditoria = _to_pendencia_auditoria(inscricao_pendente)
+        lancamento = _selecionar_lancamento(db, pendencia_auditoria)
 
         if not lancamento:
             nao_auditados.append({
-                "tipo": tipo_principal.value,
-                "id": pessoa.id,
-                "nome": pessoa.nome,
+                "tipo": tipo_detalhamento.value,
+                "id": inscricao_pendente.id,
+                "nome": inscricao_pendente.nome,
             })
             continue
 
-        capacidade_antes = _capacidade_restante(db, lancamento)
-        permite_fallback = capacidade_antes >= (_decimal(lancamento.valor) - _TOLERANCIA)
 
-        itens = extrair_detalhamentos(pendencia, grupos, tipo_principal, permite_fallback)
+        ## 2 - Extração de detalhamentos - Regras (Etapa B)
+        valor_resto_lancamento = to_decimal(lancamento.valor) - to_decimal(lancamento.soma_detalhamentos)
+        permite_fallback = valor_resto_lancamento >= (to_decimal(lancamento.valor) - _TOLERANCIA)
+
+        grupoRegras = RegraRepository.list_ativos_por_escopos(
+            db, [_ESCOPO_POR_TIPO[tipo_detalhamento]]
+        )
+        itens = extrair_detalhamentos(
+            pendencia_auditoria, grupoRegras, tipo_detalhamento, permite_fallback
+        )
 
         if not itens:
             nao_auditados.append({
-                "tipo": tipo_principal.value,
-                "id": pessoa.id,
-                "nome": pessoa.nome,
+                "tipo": tipo_detalhamento.value,
+                "id": inscricao_pendente.id,
+                "nome": inscricao_pendente.nome,
+                "lancamento_id": lancamento.id,
                 "motivo": (
                     "Lançamento já possui outra inscrição vinculada e a observação "
                     "não permite identificar o valor desta pessoa."
@@ -159,20 +153,21 @@ def _processar_pendentes(db: Session, modelo, tipo_principal: TipoDetalhamento):
             })
             continue
 
-        erro = _criar_detalhamentos(db, lancamento, itens)
+        error_message = _criar_detalhamentos(db, lancamento, itens)
 
-        if erro:
+        if error_message:
             nao_auditados.append({
-                "tipo": tipo_principal.value,
-                "id": pessoa.id,
-                "nome": pessoa.nome,
-                "motivo": erro,
+                "tipo": tipo_detalhamento.value,
+                "id": inscricao_pendente.id,
+                "nome": inscricao_pendente.nome,
+                "lancamento_id": lancamento.id,
+                "motivo": error_message,
             })
             continue
 
         vinculados += 1
 
-    return len(pendentes), vinculados, nao_auditados
+    return len(insc_pendentes), vinculados, nao_auditados
 
 
 class AuditoriaService:
