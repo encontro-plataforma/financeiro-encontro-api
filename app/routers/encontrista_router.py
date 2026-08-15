@@ -61,6 +61,11 @@ def update(
     return EncontristaService.update(db, encontrista_id, data.model_dump(exclude_none=True))
 
 
+@router.patch("/{encontrista_id}/circulo/{circulo_id}", response_model=EncontristaResponse)
+def alterar_circulo(encontrista_id: int, circulo_id: int, db: Session = Depends(get_db)):
+    return EncontristaService.alterar_circulo(db, encontrista_id, circulo_id)
+
+
 @router.delete("/{encontrista_id}")
 def delete(encontrista_id: int, db: Session = Depends(get_db)):
     EncontristaService.delete(db, encontrista_id)

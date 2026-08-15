@@ -5,6 +5,7 @@ from app.models.equipe import Equipe
 from app.utils.sort_utils import apply_sort
 
 SORT_FIELDS = {
+    "id": Encontreiro.id,
     "nome": Encontreiro.nome,
     "apelido": Encontreiro.apelido,
     "dt_inscricao": Encontreiro.dt_inscricao,
@@ -84,7 +85,7 @@ class EncontreiroRepository:
         query = db.query(Encontreiro).options(joinedload(Encontreiro.equipe))
         query = _apply_filters(query, params)
         query = apply_sort(query, Encontreiro, params.sort, SORT_FIELDS, DEFAULT_SORT)
-        return query.offset(params.skip).limit(params.limit).all()
+        return query.all()
 
     @staticmethod
     def list_with_count(db: Session, params):

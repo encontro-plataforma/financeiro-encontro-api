@@ -61,3 +61,9 @@ class EscopoRegraGrupo(str, Enum):
 class ModoExtracaoRegra(str, Enum):
     TOKEN_VALOR = "TOKEN_VALOR"
     NOME_NA_LISTA = "NOME_NA_LISTA"
+
+
+class TipoOrigemUpload(str, Enum):
+    BANCARIO = "BANCARIO"
+    ESPECIE = "ESPECIE"
+    CARTAO = "CARTAO"

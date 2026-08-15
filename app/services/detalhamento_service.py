@@ -9,6 +9,7 @@ from app.models.enums import StatusLancamento, TipoDetalhamento, TipoLancamento
 from app.repositories.encontreiro_repository import EncontreiroRepository
 from app.repositories.encontrista_repository import EncontristaRepository
 from app.repositories.finalidade_repository import FinalidadeRepository
+from app.utils.decimal_utils import to_decimal
 
 _ROTULO_POR_TIPO = {
     TipoDetalhamento.OFERTA: "OFERTA",
@@ -100,8 +101,8 @@ class DetalhamentoService:
             .all()
         )
         soma_outros = sum((d.valor for d in existentes if d.id != excluir_id), Decimal("0"))
-        resto = Decimal(str(lancamento.valor)) - soma_outros
-        valor_decimal = Decimal(str(novo_valor))
+        resto = to_decimal(lancamento.valor) - soma_outros
+        valor_decimal = to_decimal(novo_valor)
 
         if valor_decimal > resto + _TOLERANCIA:
             raise BadRequestException(
@@ -122,7 +123,7 @@ class DetalhamentoService:
             Decimal("0"),
         )
 
-        if soma >= Decimal(str(lancamento.valor)) - _TOLERANCIA:
+        if soma >= to_decimal(lancamento.valor) - _TOLERANCIA:
             lancamento.status = StatusLancamento.CONCILIADO
             db.commit()
 

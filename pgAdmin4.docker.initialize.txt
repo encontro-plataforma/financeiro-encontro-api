@@ -12,3 +12,12 @@ Server: host.docker.internal
 Database: financeiro_encontro
 Username: financeiro
 Password: financeiro
+
+########### SQLS UTEIS
+
+DELETE FROM public.detalhamentos;
+DELETE FROM public.lancamentos;
+DELETE FROM public.encontreiros;
+DELETE FROM public.encontristas;
+DELETE FROM public.uploads;
+

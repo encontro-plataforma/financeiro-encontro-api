@@ -84,7 +84,7 @@ class RegraRepository:
         query = db.query(RegraGrupo).options(_EAGER)
         query = _apply_filters(query, params)
         query = apply_sort(query, RegraGrupo, params.sort, SORT_FIELDS, DEFAULT_SORT)
-        return query.offset(params.skip).limit(params.limit).all()
+        return query.all()
 
     @staticmethod
     def list_with_count(db: Session, params):

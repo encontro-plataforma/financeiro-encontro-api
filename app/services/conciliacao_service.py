@@ -9,7 +9,7 @@ from app.models.upload_file import UploadFile
 from app.services.auditoria_service import AuditoriaService
 from app.services.upload_file_service import UploadFileService
 from app.services.lancamento_service import LancamentoService
-from app.models.enums import FormaPagamento, StatusLancamento, StatusProcessamento, TipoLancamento
+from app.models.enums import FormaPagamento, StatusLancamento, StatusProcessamento, TipoLancamento, TipoOrigemUpload
 from app.utils.hash_utils import gerar_hash
 
 logger = logging.getLogger("uvicorn.error")
@@ -113,6 +113,7 @@ class ConciliacaoService:
             "conteudo_csv": conteudo,
             "tamanho_bytes": len(conteudo.encode('utf-8')),
             "status": StatusProcessamento.PROCESSANDO,
+            "tipo_origem": TipoOrigemUpload.BANCARIO,
         })
 
     @staticmethod

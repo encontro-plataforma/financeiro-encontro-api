@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.enums import TipoDetalhamento
 
@@ -30,7 +30,7 @@ class DetalhamentoCreate(BaseModel):
     lancamento_id: int
     tipo: TipoDetalhamento
     referencia_id: Optional[int] = None
-    valor: Decimal
+    valor: Decimal = Field(..., gt=0)
     descricao: str = ""
 
 
@@ -38,5 +38,5 @@ class DetalhamentoUpdate(BaseModel):
     lancamento_id: Optional[int] = None
     tipo: Optional[TipoDetalhamento] = None
     referencia_id: Optional[int] = None
-    valor: Optional[Decimal] = None
+    valor: Optional[Decimal] = Field(None, gt=0)
     descricao: Optional[str] = None

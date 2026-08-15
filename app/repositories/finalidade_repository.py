@@ -34,7 +34,7 @@ class FinalidadeRepository:
         query = db.query(Finalidade)
         query = _apply_filters(query, params)
         query = apply_sort(query, Finalidade, params.sort, SORT_FIELDS, DEFAULT_SORT)
-        return query.offset(params.skip).limit(params.limit).all()
+        return query.all()
 
     @staticmethod
     def list_with_count(db: Session, params):

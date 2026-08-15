@@ -8,6 +8,7 @@ from app.models.enums import StatusLancamento, TipoDetalhamento, TipoLancamento
 from app.core.exceptions import NotFoundException, BadRequestException
 from app.models.detalhamento import Detalhamento
 from app.models.lancamento import Lancamento
+from app.utils.decimal_utils import to_decimal
 from app.utils.hash_utils import gerar_hash
 
 _TOLERANCIA = Decimal("0.01")
@@ -66,7 +67,7 @@ class LancamentoService:
                 (d.valor for d in db.query(Detalhamento).filter(Detalhamento.lancamento_id == lancamento_id).all()),
                 Decimal("0"),
             )
-            novo_valor = Decimal(str(updated["valor"]))
+            novo_valor = to_decimal(updated["valor"])
             if novo_valor < soma - _TOLERANCIA:
                 raise BadRequestException(
                     f"O valor não pode ser menor que a soma dos detalhamentos já vinculados (R$ {soma:.2f})."
@@ -138,7 +139,7 @@ class LancamentoService:
                     .all()
                 )
                 soma = sum((d.valor for d in detalhamentos), Decimal("0"))
-                valor = Decimal(str(obj.valor))
+                valor = to_decimal(obj.valor)
                 resto = valor - soma
 
                 if resto < -_TOLERANCIA:

@@ -7,11 +7,14 @@ from app.models.circulo import Circulo
 from app.utils.sort_utils import apply_sort
 
 SORT_FIELDS = {
+    "id": Encontrista.id,
     "nome": Encontrista.nome,
     "apelido": Encontrista.apelido,
     "dt_entrega": Encontrista.dt_entrega,
     "dt_nascimento": Encontrista.dt_nascimento,
     "dt_pagamento": Encontrista.dt_pagamento,
+    "idade": Encontrista.idade,
+    "circulo": Circulo.nome,
 }
 
 DEFAULT_SORT = "id:asc"
@@ -83,13 +86,27 @@ def _apply_filters(query, params):
     return query
 
 
+def _join_para_sort(query, sort: str):
+    """`apply_sort` só referencia colunas -- se a ordenação pedir um campo
+    de outra tabela (ex.: "circulo", que ordena por Circulo.nome), o JOIN
+    precisa existir explicitamente na query (o `joinedload` do circulo é só
+    pra popular o relacionamento, não fica disponível pro ORDER BY de fora,
+    principalmente no `query.count()` do list_with_count)."""
+    if sort and "circulo:" in sort:
+        query = query.outerjoin(Circulo, Encontrista.circulo_id == Circulo.id)
+    return query
+
+
 class EncontristaRepository:
 
     @staticmethod
     def get_by_id(db: Session, encontrista_id: int):
         return (
             db.query(Encontrista)
-            .options(joinedload(Encontrista.circulo), joinedload(Encontrista.padrinho))
+            .options(
+                joinedload(Encontrista.circulo),
+                joinedload(Encontrista.padrinho).joinedload(Encontreiro.equipe),
+            )
             .filter(Encontrista.id == encontrista_id)
             .first()
         )
@@ -97,18 +114,22 @@ class EncontristaRepository:
     @staticmethod
     def list_all(db: Session, params):
         query = db.query(Encontrista).options(
-            joinedload(Encontrista.circulo), joinedload(Encontrista.padrinho)
+            joinedload(Encontrista.circulo),
+            joinedload(Encontrista.padrinho).joinedload(Encontreiro.equipe),
         )
         query = _apply_filters(query, params)
+        query = _join_para_sort(query, params.sort)
         query = apply_sort(query, Encontrista, params.sort, SORT_FIELDS, DEFAULT_SORT)
-        return query.offset(params.skip).limit(params.limit).all()
+        return query.all()
 
     @staticmethod
     def list_with_count(db: Session, params):
         query = db.query(Encontrista).options(
-            joinedload(Encontrista.circulo), joinedload(Encontrista.padrinho)
+            joinedload(Encontrista.circulo),
+            joinedload(Encontrista.padrinho).joinedload(Encontreiro.equipe),
         )
         query = _apply_filters(query, params)
+        query = _join_para_sort(query, params.sort)
         query = apply_sort(query, Encontrista, params.sort, SORT_FIELDS, DEFAULT_SORT)
         total = query.count()
         items = query.offset(params.skip).limit(params.limit).all()
@@ -139,6 +160,7 @@ class EncontristaRepository:
     def get_padrinhos_disponiveis(db: Session):
         return (
             db.query(Encontreiro)
+            .options(joinedload(Encontreiro.equipe))
             .join(Encontrista, Encontrista.padrinho_id == Encontreiro.id)
             .distinct()
             .order_by(Encontreiro.nome)

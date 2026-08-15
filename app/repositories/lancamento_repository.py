@@ -86,7 +86,7 @@ class LancamentoRepository:
 
         query = apply_sort(query, Lancamento, params.sort, SORT_FIELDS, DEFAULT_SORT)
 
-        return query.offset(params.skip).limit(params.limit).all()
+        return query.all()
 
     @staticmethod
     def list_with_count(db: Session, params):

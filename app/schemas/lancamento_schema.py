@@ -46,6 +46,7 @@ class LancamentoResumo(BaseModel):
     valor: float
     data_pagamento: datetime
     status: StatusLancamento
+    forma_pagamento: FormaPagamento
 
     class Config:
         from_attributes = True
