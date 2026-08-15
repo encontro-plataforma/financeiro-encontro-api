@@ -26,6 +26,7 @@ from app.routers.finalidade_router import router as finalidade_router
 from app.routers.lancamento_router import router as lancamento_router
 from app.routers.regra_router import router as regra_router
 from app.routers.relatorio_router import router as relatorio_router
+from app.routers.relatorio_secretaria_router import router as relatorio_secretaria_router
 from app.routers.upload_file_router import router as upload_file_router
 from app.routers.usuario_router import router as usuario_router
 
@@ -91,6 +92,7 @@ app.include_router(upload_file_router, **_protected)
 app.include_router(conciliacao_router, **_protected)
 app.include_router(dashboard_router, **_protected)
 app.include_router(relatorio_router, **_protected)
+app.include_router(relatorio_secretaria_router, **_protected)
 app.include_router(usuario_router, **_protected)
 app.include_router(equipe_router, **_protected)
 app.include_router(circulo_router, **_protected)
