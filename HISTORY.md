@@ -1,5 +1,22 @@
 # Histórico de Versões
 
+## [0.4.0] — 2026-08-15
+
+### Adicionado
+- Motor de regras (Etapa B da Auditoria) para `EXTRACAO_ENCONTRISTA` ganhou duas regras novas: "Inscrição
+  (valor no pagamento)" (lê o valor logo após "pagamento via ... de" na observação, sem depender do
+  `pagamento` cadastrado) e "Biscoitos" (`OUTRO`, reconhece valor perto de "biscoito" exceto quando vier "em
+  pacotes"/"pct" — nesse caso é só entrega física, sem cobrança — e só dispara se a observação também trouxer
+  o valor da inscrição; Oferta/Biscoito nunca geram Detalhamento sozinhos). `seed_regras()` agora também
+  completa grupos já existentes com regras padrão que ainda não têm, não só cria grupos novos do zero
+- `_TOKENS_FORMA_PAGAMENTO` (Etapa A) reconhece "espécie" como sinônimo de dinheiro
+- `PadrinhoResumo` (resposta de `Encontrista.padrinho` e de `GET /encontristas/padrinhos-disponiveis`) passa
+  a trazer `apelido` e `equipe`, usados pelo novo dialog de seleção de padrinho no frontend
+- `PATCH /encontristas/{id}/circulo/{circulo_id}` — endpoint dedicado para alterar só o círculo do
+  encontrista (id `0` remove o círculo), usado pelo botão de troca rápida na listagem do frontend
+- Listagem de encontristas (`GET /encontristas`) ganha ordenação por `idade` e `circulo` (por
+  `Circulo.nome`), além dos campos já existentes
+
 ## [0.3.3] — 2026-07-31
 
 ### Adicionado
