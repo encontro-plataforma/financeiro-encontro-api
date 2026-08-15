@@ -13,6 +13,8 @@ SORT_FIELDS = {
     "dt_entrega": Encontrista.dt_entrega,
     "dt_nascimento": Encontrista.dt_nascimento,
     "dt_pagamento": Encontrista.dt_pagamento,
+    "idade": Encontrista.idade,
+    "circulo": Circulo.nome,
 }
 
 DEFAULT_SORT = "id:asc"
@@ -84,6 +86,17 @@ def _apply_filters(query, params):
     return query
 
 
+def _join_para_sort(query, sort: str):
+    """`apply_sort` só referencia colunas -- se a ordenação pedir um campo
+    de outra tabela (ex.: "circulo", que ordena por Circulo.nome), o JOIN
+    precisa existir explicitamente na query (o `joinedload` do circulo é só
+    pra popular o relacionamento, não fica disponível pro ORDER BY de fora,
+    principalmente no `query.count()` do list_with_count)."""
+    if sort and "circulo:" in sort:
+        query = query.outerjoin(Circulo, Encontrista.circulo_id == Circulo.id)
+    return query
+
+
 class EncontristaRepository:
 
     @staticmethod
@@ -105,6 +118,7 @@ class EncontristaRepository:
             joinedload(Encontrista.padrinho).joinedload(Encontreiro.equipe),
         )
         query = _apply_filters(query, params)
+        query = _join_para_sort(query, params.sort)
         query = apply_sort(query, Encontrista, params.sort, SORT_FIELDS, DEFAULT_SORT)
         return query.all()
 
@@ -115,6 +129,7 @@ class EncontristaRepository:
             joinedload(Encontrista.padrinho).joinedload(Encontreiro.equipe),
         )
         query = _apply_filters(query, params)
+        query = _join_para_sort(query, params.sort)
         query = apply_sort(query, Encontrista, params.sort, SORT_FIELDS, DEFAULT_SORT)
         total = query.count()
         items = query.offset(params.skip).limit(params.limit).all()

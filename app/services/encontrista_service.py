@@ -87,6 +87,25 @@ class EncontristaService:
         return EncontristaRepository.update(db, obj, data)
 
     @staticmethod
+    def alterar_circulo(db: Session, encontrista_id: int, circulo_id: int):
+        obj = EncontristaRepository.get_by_id(db, encontrista_id)
+
+        if not obj:
+            raise NotFoundException("Encontrista")
+
+        # 0 é o sentinela de "Sem Círculo" (mesma convenção do filtro de
+        # círculo da listagem) -- não corresponde a um Circulo real.
+        if circulo_id == 0:
+            return EncontristaRepository.update(db, obj, {"circulo_id": None})
+
+        circulo = CirculoRepository.get_by_id(db, circulo_id)
+
+        if not circulo:
+            raise NotFoundException("Círculo")
+
+        return EncontristaRepository.update(db, obj, {"circulo_id": circulo_id})
+
+    @staticmethod
     def delete(db: Session, encontrista_id: int):
         obj = EncontristaRepository.get_by_id(db, encontrista_id)
 
