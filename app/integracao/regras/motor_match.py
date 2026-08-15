@@ -17,6 +17,7 @@ _TOKENS_FORMA_PAGAMENTO = [
     (re.compile(r"cartao"), FormaPagamento.CARTAO_CREDITO),
     (re.compile(r"pix"), FormaPagamento.PIX),
     (re.compile(r"dinheiro"), FormaPagamento.DINHEIRO),
+    (re.compile(r"especie"), FormaPagamento.DINHEIRO),
 ]
 
 
@@ -44,8 +45,9 @@ def selecionar_lancamento(
     assim, um lançamento já 100% consumido (sem nenhuma capacidade sobrando)
     é descartado. Filtra os candidatos pela forma de pagamento mencionada na
     observação da pendência (pix/dinheiro/cartão de crédito/cartão de
-    débito) — evita ligar, por exemplo, um lançamento via cartão a uma
-    inscrição paga via pix. Se a observação não mencionar nenhuma forma
+    débito, "espécie" tratado como sinônimo de dinheiro) — evita ligar, por
+    exemplo, um lançamento via cartão a uma inscrição paga via pix. Se a
+    observação não mencionar nenhuma forma
     reconhecível, assume PIX (a forma mais comum) em vez de deixar o
     candidato sem esse filtro. Em caso de empate, vence o de menor id (mais
     antigo)."""

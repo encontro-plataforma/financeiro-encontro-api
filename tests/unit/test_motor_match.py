@@ -156,3 +156,11 @@ def test_cartao_de_debito_nao_e_mascarado_pelo_padrao_generico():
     debito = _candidato(2, "JOAO DA SILVA", "100", FormaPagamento.CARTAO_DEBITO)
 
     assert selecionar_lancamento(pendencia, [credito, debito]) is debito
+
+
+def test_especie_e_tratado_como_sinonimo_de_dinheiro():
+    pendencia = _pendencia(observacao="Pagamento via espécie de R$ 100,00")
+    dinheiro = _candidato(1, "JOAO DA SILVA", "100", FormaPagamento.DINHEIRO)
+    pix = _candidato(2, "JOAO DA SILVA", "100", FormaPagamento.PIX)
+
+    assert selecionar_lancamento(pendencia, [dinheiro, pix]) is dinheiro

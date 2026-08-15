@@ -50,6 +50,95 @@ def _grupo_inscricao_encontreiro(inscricao_ativa=True, com_lista_compartilhada=T
     )
 
 
+def _grupo_inscricao_encontrista():
+    return RegraGrupo(
+        nome="EXTRACAO_ENCONTRISTA", escopo="EXTRACAO_ENCONTRISTA", ordem=10, ativo=True,
+        regras=[
+            Regra(
+                nome="Inscrição", ordem=1, ativo=True,
+                tipo_detalhamento_resultado=TipoDetalhamento.INSCRICAO_ENCONTRISTA,
+                modo_extracao=ModoExtracaoRegra.TOKEN_VALOR,
+                condicoes=[RegraCondicao(ordem=1, padrao_regex=_PADRAO_INSCRICAO)],
+            ),
+            Regra(
+                nome="Inscrição (lista compartilhada)", ordem=2, ativo=True,
+                tipo_detalhamento_resultado=TipoDetalhamento.INSCRICAO_ENCONTRISTA,
+                modo_extracao=ModoExtracaoRegra.NOME_NA_LISTA,
+                condicoes=[],
+            ),
+            Regra(
+                nome="Inscrição (valor no pagamento)", ordem=3, ativo=True,
+                tipo_detalhamento_resultado=TipoDetalhamento.INSCRICAO_ENCONTRISTA,
+                modo_extracao=ModoExtracaoRegra.TOKEN_VALOR,
+                condicoes=[RegraCondicao(ordem=1, padrao_regex=r"pagamento\s+via\D*?(\d+(?:[.,]\d{2})?)")],
+            ),
+            Regra(
+                nome="Oferta", ordem=4, ativo=True,
+                tipo_detalhamento_resultado=TipoDetalhamento.OFERTA,
+                modo_extracao=ModoExtracaoRegra.TOKEN_VALOR,
+                condicoes=[RegraCondicao(ordem=1, padrao_regex=_PADRAO_OFERTA)],
+            ),
+            Regra(
+                nome="Biscoitos", ordem=5, ativo=True,
+                tipo_detalhamento_resultado=TipoDetalhamento.OUTRO,
+                modo_extracao=ModoExtracaoRegra.TOKEN_VALOR,
+                condicoes=[
+                    RegraCondicao(
+                        ordem=1,
+                        padrao_regex=r"(?:biscoitos?\D*?(\d+(?:[.,]\d{2})?)|(\d+(?:[.,]\d{2})?)\D*?biscoitos?)",
+                    ),
+                    RegraCondicao(ordem=2, padrao_regex=r"(?s)^(?:(?!pacotes?|pct\b).)*$"),
+                    RegraCondicao(ordem=3, padrao_regex=r"pagamento\s+via\D*?\d+(?:[.,]\d{2})?"),
+                ],
+            ),
+        ],
+    )
+
+
+def test_biscoitos_em_pacotes_nao_gera_detalhamento_extra():
+    pendencia = _pendencia(pagamento="160", observacao="Pagamento via PIX de R$ 160,00 reais / Biscoitos de 6 pacotes")
+    grupos = [_grupo_inscricao_encontrista()]
+
+    itens = extrair_detalhamentos(pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTRISTA)
+
+    assert len(itens) == 1
+    assert itens[0].tipo == TipoDetalhamento.INSCRICAO_ENCONTRISTA
+    assert itens[0].valor == Decimal("160")
+    assert itens[0].referencia_id == pendencia.id
+
+
+def test_biscoitos_em_reais_gera_inscricao_mais_outro():
+    pendencia = _pendencia(
+        pagamento="160",
+        observacao="Pagamento via PIX de R$ 160,00 reais com 20 reais de biscoitos",
+    )
+    grupos = [_grupo_inscricao_encontrista()]
+
+    itens = extrair_detalhamentos(pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTRISTA)
+
+    assert len(itens) == 2
+    inscricao = next(i for i in itens if i.tipo == TipoDetalhamento.INSCRICAO_ENCONTRISTA)
+    outro = next(i for i in itens if i.tipo == TipoDetalhamento.OUTRO)
+    assert inscricao.valor == Decimal("160")
+    assert inscricao.referencia_id == pendencia.id
+    assert outro.valor == Decimal("20")
+    assert outro.referencia_id is None
+
+
+def test_biscoito_sem_valor_de_inscricao_nao_cria_nada():
+    # "Biscoitos" sozinho, sem a observação trazer quanto foi pago na
+    # inscrição, é observação incompleta -- não deve inventar nem a
+    # inscrição (usando o pagamento de referência) nem o biscoito.
+    pendencia = _pendencia(pagamento="20", observacao="Biscoitos de 20 reais")
+    grupos = [_grupo_inscricao_encontrista()]
+
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTRISTA, permite_fallback=False,
+    )
+
+    assert itens == []
+
+
 def test_token_antes_do_valor_gera_dois_itens():
     pendencia = _pendencia(observacao="Pago em pix a inscricao 90 e 10 de oferta")
     grupos = [_grupo_inscricao_encontreiro()]
