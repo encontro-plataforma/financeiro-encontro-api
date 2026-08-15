@@ -90,7 +90,10 @@ class EncontristaRepository:
     def get_by_id(db: Session, encontrista_id: int):
         return (
             db.query(Encontrista)
-            .options(joinedload(Encontrista.circulo), joinedload(Encontrista.padrinho))
+            .options(
+                joinedload(Encontrista.circulo),
+                joinedload(Encontrista.padrinho).joinedload(Encontreiro.equipe),
+            )
             .filter(Encontrista.id == encontrista_id)
             .first()
         )
@@ -98,7 +101,8 @@ class EncontristaRepository:
     @staticmethod
     def list_all(db: Session, params):
         query = db.query(Encontrista).options(
-            joinedload(Encontrista.circulo), joinedload(Encontrista.padrinho)
+            joinedload(Encontrista.circulo),
+            joinedload(Encontrista.padrinho).joinedload(Encontreiro.equipe),
         )
         query = _apply_filters(query, params)
         query = apply_sort(query, Encontrista, params.sort, SORT_FIELDS, DEFAULT_SORT)
@@ -107,7 +111,8 @@ class EncontristaRepository:
     @staticmethod
     def list_with_count(db: Session, params):
         query = db.query(Encontrista).options(
-            joinedload(Encontrista.circulo), joinedload(Encontrista.padrinho)
+            joinedload(Encontrista.circulo),
+            joinedload(Encontrista.padrinho).joinedload(Encontreiro.equipe),
         )
         query = _apply_filters(query, params)
         query = apply_sort(query, Encontrista, params.sort, SORT_FIELDS, DEFAULT_SORT)
@@ -140,6 +145,7 @@ class EncontristaRepository:
     def get_padrinhos_disponiveis(db: Session):
         return (
             db.query(Encontreiro)
+            .options(joinedload(Encontreiro.equipe))
             .join(Encontrista, Encontrista.padrinho_id == Encontreiro.id)
             .distinct()
             .order_by(Encontreiro.nome)
