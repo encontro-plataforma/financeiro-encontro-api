@@ -35,6 +35,7 @@ class AcessoEquipe(str, Enum):
     VERMELHO = "VERMELHO"
     AMARELO  = "AMARELO"
     VERDE    = "VERDE"
+    NA       = "N/A"
 
 
 class SituacaoCamisa(str, Enum):

@@ -6,35 +6,36 @@ from app.models.enums import AcessoEquipe
 
 DEFAULT_EQUIPES = [
     # ── EDG ──────────────────────────────────────────────────────────────────
-    {"id": 1,  "nome": "EDG",                      "acesso": AcessoEquipe.EDG},
+    {"id": 1,  "nome": "EDG",                       "acesso": AcessoEquipe.EDG},
     # ── VERDE ────────────────────────────────────────────────────────────────
     {"id": 2,  "nome": "BOA VONTADE",               "acesso": AcessoEquipe.VERDE},
     {"id": 3,  "nome": "CASAL PASTA",               "acesso": AcessoEquipe.VERDE},
     {"id": 4,  "nome": "CIRCULOS",                  "acesso": AcessoEquipe.VERDE},
-    {"id": 5,  "nome": "COORDENADOR GERAL",         "acesso": AcessoEquipe.VERDE},
-    {"id": 6,  "nome": "RECEPÇÃO AOS PALESTRANTES", "acesso": AcessoEquipe.VERDE},
+    {"id": 5,  "nome": "RECEPÇÃO AOS PALESTRANTES", "acesso": AcessoEquipe.VERDE},
+    {"id": 6,  "nome": "SECRETARIA",                "acesso": AcessoEquipe.VERDE},
     {"id": 7,  "nome": "SOM & ILUMINAÇÃO",          "acesso": AcessoEquipe.VERDE},
     # ── AMARELO ──────────────────────────────────────────────────────────────
     {"id": 8,  "nome": "BANDINHA",                  "acesso": AcessoEquipe.AMARELO},
     {"id": 9,  "nome": "CAFEZINHO",                 "acesso": AcessoEquipe.AMARELO},
-    {"id": 10, "nome": "EQUIPE SAÚDE",              "acesso": AcessoEquipe.AMARELO},
+    {"id": 10, "nome": "SAÚDE",                     "acesso": AcessoEquipe.AMARELO},
     {"id": 11, "nome": "CORREIOS",                  "acesso": AcessoEquipe.AMARELO},
     {"id": 12, "nome": "GARÇONS",                   "acesso": AcessoEquipe.AMARELO},
     {"id": 13, "nome": "LIVRARIA",                  "acesso": AcessoEquipe.AMARELO},
-    {"id": 14, "nome": "MÍDIAS",                    "acesso": AcessoEquipe.AMARELO},
-    {"id": 15, "nome": "TEATRO",                    "acesso": AcessoEquipe.AMARELO},
-    {"id": 16, "nome": "TRÂNSITO",                  "acesso": AcessoEquipe.AMARELO},
+    {"id": 14, "nome": "MÍDIAS & COMUNICAÇÃO",      "acesso": AcessoEquipe.AMARELO},
+    {"id": 15, "nome": "PERSONALIZADOS",            "acesso": AcessoEquipe.AMARELO},
+    {"id": 16, "nome": "TEATRO",                    "acesso": AcessoEquipe.AMARELO},
+    {"id": 17, "nome": "TRÂNSITO",                  "acesso": AcessoEquipe.AMARELO},
     # ── VERMELHO ─────────────────────────────────────────────────────────────
-    {"id": 17, "nome": "CERIMONIAL",                "acesso": AcessoEquipe.VERMELHO},
-    {"id": 18, "nome": "COZINHA",                   "acesso": AcessoEquipe.VERMELHO},
-    {"id": 19, "nome": "FINANÇAS",                  "acesso": AcessoEquipe.VERMELHO},
-    {"id": 20, "nome": "LANCHONETE",                "acesso": AcessoEquipe.VERMELHO},
-    {"id": 21, "nome": "MINI MERCADO / COMPRAS",    "acesso": AcessoEquipe.VERMELHO},
-    {"id": 22, "nome": "ORAÇÃO",                    "acesso": AcessoEquipe.VERMELHO},
-    {"id": 23, "nome": "ORDEM",                     "acesso": AcessoEquipe.VERMELHO},
-    {"id": 24, "nome": "PATRIMÔNIO",                "acesso": AcessoEquipe.VERMELHO},
-    {"id": 25, "nome": "SECRETARIA",                "acesso": AcessoEquipe.VERMELHO},
+    {"id": 18, "nome": "CERIMONIAL",                "acesso": AcessoEquipe.VERMELHO},
+    {"id": 19, "nome": "COMPRAS",                   "acesso": AcessoEquipe.VERMELHO},
+    {"id": 20, "nome": "COZINHA",                   "acesso": AcessoEquipe.VERMELHO},
+    {"id": 21, "nome": "LANCHONETE",                "acesso": AcessoEquipe.VERMELHO},
+    {"id": 22, "nome": "MINI MERCADO",              "acesso": AcessoEquipe.VERMELHO},
+    {"id": 23, "nome": "ORAÇÃO",                    "acesso": AcessoEquipe.VERMELHO},
+    {"id": 24, "nome": "ORDEM",                     "acesso": AcessoEquipe.VERMELHO},
+    {"id": 25, "nome": "PATRIMÔNIO",                "acesso": AcessoEquipe.VERMELHO},
     {"id": 26, "nome": "VISITAÇÃO E EXTERNA",       "acesso": AcessoEquipe.VERMELHO},
+    {"id": 27, "nome": "N/A",                       "acesso": AcessoEquipe.NA},
 ]
 
 

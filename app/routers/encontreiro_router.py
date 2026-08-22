@@ -60,6 +60,11 @@ def update(
     return EncontreiroService.update(db, encontreiro_id, data.model_dump(exclude_none=True))
 
 
+@router.patch("/{encontreiro_id}/equipe/{equipe_id}", response_model=EncontreiroResponse)
+def alterar_equipe(encontreiro_id: int, equipe_id: int, db: Session = Depends(get_db)):
+    return EncontreiroService.alterar_equipe(db, encontreiro_id, equipe_id)
+
+
 @router.delete("/{encontreiro_id}")
 def delete(encontreiro_id: int, db: Session = Depends(get_db)):
     EncontreiroService.delete(db, encontreiro_id)
