@@ -112,7 +112,7 @@ class EspecieService:
             hash_value = gerar_hash(descricao_lancamento, linha.valor, linha.data, observacao_lancamento)
 
             if LancamentoService.exists_by_hash(db, hash_value):
-                return {"duplicado": True, "descricao": descricao_lancamento, "valor": linha.valor, "data": linha.data.isoformat()}
+                return {"duplicado": True, "descricao": descricao_lancamento, "valor": float(linha.valor), "data": linha.data.isoformat()}
 
             finalidade_inscricao = FinalidadeRepository.get_by_nome(db, "INSCRIÇÃO")
 
@@ -139,7 +139,7 @@ class EspecieService:
         hash_value = gerar_hash(descricao_completa, linha.valor, linha.data, "")
 
         if LancamentoService.exists_by_hash(db, hash_value):
-            return {"duplicado": True, "descricao": descricao_completa, "valor": linha.valor, "data": linha.data.isoformat()}
+            return {"duplicado": True, "descricao": descricao_completa, "valor": float(linha.valor), "data": linha.data.isoformat()}
 
         nome_finalidade = resolver_nome_finalidade_avulso(linha.tipo)
         finalidade = FinalidadeRepository.get_by_nome(db, nome_finalidade) if nome_finalidade else None

@@ -83,6 +83,19 @@ class EncontreiroService:
         return EncontreiroRepository.update(db, obj, data)
 
     @staticmethod
+    def alterar_equipe(db: Session, encontreiro_id: int, equipe_id: int):
+        obj = EncontreiroRepository.get_by_id(db, encontreiro_id)
+
+        if not obj:
+            raise NotFoundException("Encontreiro")
+
+        equipe = EquipeRepository.get_by_id(db, equipe_id)
+        if not equipe:
+            raise NotFoundException("Equipe")
+
+        return EncontreiroRepository.update(db, obj, {"equipe_id": equipe_id})
+
+    @staticmethod
     def delete(db: Session, encontreiro_id: int):
         obj = EncontreiroRepository.get_by_id(db, encontreiro_id)
 
