@@ -4,7 +4,12 @@ from sqlalchemy.dialects.postgresql import ENUM
 from app.database.base import Base
 from app.models.enums import AcessoEquipe
 
-acesso_equipe_enum = ENUM(AcessoEquipe, name="acesso_equipe", create_type=True)
+acesso_equipe_enum = ENUM(
+    AcessoEquipe,
+    name="acesso_equipe",
+    create_type=True,
+    values_callable=lambda enum_cls: [e.value for e in enum_cls],
+)
 
 
 class Equipe(Base):
