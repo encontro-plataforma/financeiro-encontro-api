@@ -109,6 +109,15 @@ def parse(conteudo: str) -> List[EncontristaCsvRow]:
             if not row or not any(c.strip() for c in row):
                 continue
 
+            # Linha "sentinela" gerada pelo Excel/Google Sheets ao exportar
+            # abaixo dos dados reais (ex.: ",,,-,#N/A,#N/A,#N/A,,,...,,"):
+            # ID e NOME em branco indicam que a partir daqui não há mais
+            # registros preenchidos — encerra a leitura sem erro.
+            id_bruto = row[0].strip() if len(row) > 0 else ""
+            nome_bruto = row[9].strip() if len(row) > 9 else ""
+            if not id_bruto and not nome_bruto:
+                break
+
             if len(row) < _NUM_COLUNAS:
                 raise ValueError(
                     f"Linha {linha_num}: esperado {_NUM_COLUNAS} colunas, encontrado {len(row)}"

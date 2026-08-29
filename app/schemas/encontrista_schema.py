@@ -33,6 +33,7 @@ class EncontristaResponse(BaseModel):
     idade: Optional[int]
     circulo_id: Optional[int]
     circulo: Optional[CirculoResponse]
+    onde_veio_ficha: Optional[str]
     instagram: Optional[str]
     contato: Optional[str]
     religiao: Optional[str]
@@ -72,6 +73,7 @@ class EncontristaCreate(BaseModel):
     dt_nascimento: Optional[date] = None
     idade: Optional[int] = None
     circulo_id: Optional[int] = None
+    onde_veio_ficha: str = ""
     instagram: Optional[str] = None
     contato: Optional[str] = None
     religiao: Optional[str] = None
@@ -103,6 +105,7 @@ class EncontristaUpdate(BaseModel):
     dt_nascimento: Optional[date] = None
     idade: Optional[int] = None
     circulo_id: Optional[int] = None
+    onde_veio_ficha: Optional[str] = None
     instagram: Optional[str] = None
     contato: Optional[str] = None
     religiao: Optional[str] = None

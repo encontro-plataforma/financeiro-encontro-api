@@ -150,7 +150,7 @@ class EncontristaService:
             "dt_nascimento": parse_date_br(row.dt_nascimento),
             "idade": _parse_idade(row.idade),
             "circulo_id": circulo_id,
-            "onde_veio_ficha": row.onde_veio_ficha,
+            "onde_veio_ficha": row.onde_veio_ficha or "",
             "instagram": row.instagram,
             "contato": row.contato,
             "religiao": row.religiao,
