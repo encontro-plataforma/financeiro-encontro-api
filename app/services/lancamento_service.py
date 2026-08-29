@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.repositories.lancamento_repository import LancamentoRepository
 from app.schemas.lancamento_schema import DetalhamentoFinalDto, LancamentoCreate, LancamentoUpdate
-from app.models.enums import StatusLancamento, TipoDetalhamento, TipoLancamento
+from app.models.enums import FormaPagamento, StatusLancamento, TipoDetalhamento, TipoLancamento
 from app.core.exceptions import NotFoundException, BadRequestException
 from app.models.detalhamento import Detalhamento
 from app.models.lancamento import Lancamento
@@ -13,6 +13,29 @@ from app.utils.hash_utils import gerar_hash
 
 _TOLERANCIA = Decimal("0.01")
 _TIPOS_INSCRICAO = (TipoDetalhamento.INSCRICAO_ENCONTREIRO, TipoDetalhamento.INSCRICAO_ENCONTRISTA)
+_FORMAS_CARTAO = (FormaPagamento.CARTAO_CREDITO, FormaPagamento.CARTAO_DEBITO)
+
+
+def _validar_campos_cartao(forma_pagamento, cart_taxa, cart_valor_liquido, cart_parcelas):
+    """Forma de pagamento em cartão exige os campos exclusivos de cartão
+    (taxa, valor líquido, parcelas) -- é o que a Auditoria usa pra achar o
+    lançamento certo e gerar o Detalhamento de taxa (ver auditoria_service.py)."""
+    if forma_pagamento not in _FORMAS_CARTAO:
+        return
+
+    faltando = [
+        nome for nome, valor in (
+            ("cart_taxa", cart_taxa),
+            ("cart_valor_liquido", cart_valor_liquido),
+            ("cart_parcelas", cart_parcelas),
+        )
+        if valor is None
+    ]
+    if faltando:
+        raise BadRequestException(
+            "Lançamento com forma de pagamento em cartão exige os campos: "
+            f"{', '.join(faltando)}."
+        )
 
 
 class LancamentoService:
@@ -20,6 +43,13 @@ class LancamentoService:
     @staticmethod
     def create(db: Session, data: LancamentoCreate | dict):
         payload = data.model_dump() if hasattr(data, "model_dump") else dict(data)
+
+        _validar_campos_cartao(
+            payload.get("forma_pagamento"),
+            payload.get("cart_taxa"),
+            payload.get("cart_valor_liquido"),
+            payload.get("cart_parcelas"),
+        )
 
         if not payload.get("hash_transacao"):
             payload["hash_transacao"] = gerar_hash(
@@ -43,6 +73,13 @@ class LancamentoService:
             raise NotFoundException("Lançamento")
 
         updated = data.model_dump(exclude_unset=True, exclude_none=True)
+
+        _validar_campos_cartao(
+            updated.get("forma_pagamento", obj.forma_pagamento),
+            updated.get("cart_taxa", obj.cart_taxa),
+            updated.get("cart_valor_liquido", obj.cart_valor_liquido),
+            updated.get("cart_parcelas", obj.cart_parcelas),
+        )
 
         if obj.status == StatusLancamento.CONCILIADO and updated.get("status") != StatusLancamento.NAO_CONCILIADO:
             raise BadRequestException(

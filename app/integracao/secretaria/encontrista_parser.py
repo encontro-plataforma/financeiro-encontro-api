@@ -8,7 +8,7 @@ from app.utils.parse_utils import normalizar_cabecalho
 # O cabeçalho real desse CSV tem rótulos repetidos (ID aparece nas colunas
 # 1 e 4; NOME/CONTATO aparecem 3x cada), então o mapeamento é posicional
 # (índices fixos), não por nome de coluna como no CSV de Encontreiro.
-_NUM_COLUNAS = 32
+_NUM_COLUNAS = 33
 
 _CAMPOS_POR_INDICE = {
     0: "id",
@@ -23,24 +23,25 @@ _CAMPOS_POR_INDICE = {
     11: "dt_nascimento",
     12: "idade",
     13: "circulo_nome",
-    14: "instagram",
-    15: "contato",
-    16: "religiao",
-    17: "igreja",
-    18: "endereco",
-    19: "cidade",
-    20: "camisa",
-    21: "blusa",
-    22: "veiculo",
-    23: "contato_emerg",
-    24: "nome_emerg",
-    25: "parentesco_emerg",
-    26: "medicacao",
-    27: "alergia_comorbidade",
-    28: "dt_pagamento",
-    29: "nome_pagador",
-    30: "pagamento",
-    31: "observacao",
+    14: "onde_veio_ficha",
+    15: "instagram",
+    16: "contato",
+    17: "religiao",
+    18: "igreja",
+    19: "endereco",
+    20: "cidade",
+    21: "camisa",
+    22: "blusa",
+    23: "veiculo",
+    24: "contato_emerg",
+    25: "nome_emerg",
+    26: "parentesco_emerg",
+    27: "medicacao",
+    28: "alergia_comorbidade",
+    29: "dt_pagamento",
+    30: "nome_pagador",
+    31: "pagamento",
+    32: "observacao",
 }
 
 
@@ -58,6 +59,7 @@ class EncontristaCsvRow:
     dt_nascimento: Optional[str] = None
     idade: Optional[str] = None
     circulo_nome: Optional[str] = None
+    onde_veio_ficha: Optional[str] = None
     instagram: Optional[str] = None
     contato: Optional[str] = None
     religiao: Optional[str] = None
@@ -106,6 +108,15 @@ def parse(conteudo: str) -> List[EncontristaCsvRow]:
 
             if not row or not any(c.strip() for c in row):
                 continue
+
+            # Linha "sentinela" gerada pelo Excel/Google Sheets ao exportar
+            # abaixo dos dados reais (ex.: ",,,-,#N/A,#N/A,#N/A,,,...,,"):
+            # ID e NOME em branco indicam que a partir daqui não há mais
+            # registros preenchidos — encerra a leitura sem erro.
+            id_bruto = row[0].strip() if len(row) > 0 else ""
+            nome_bruto = row[9].strip() if len(row) > 9 else ""
+            if not id_bruto and not nome_bruto:
+                break
 
             if len(row) < _NUM_COLUNAS:
                 raise ValueError(

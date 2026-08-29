@@ -14,6 +14,9 @@ class LancamentoBase(BaseModel):
     finalidade_id: Optional[int]
     sugestao_finalidade: Optional[int] = None
     observacao: Optional[str] = None
+    cart_taxa: Optional[float] = None
+    cart_valor_liquido: Optional[float] = None
+    cart_parcelas: Optional[int] = None
 
 
 class LancamentoCreate(LancamentoBase):
@@ -38,6 +41,9 @@ class LancamentoUpdate(BaseModel):
     data_pagamento: Optional[datetime] = None
     finalidade_id: Optional[int] = None
     observacao: Optional[str] = None
+    cart_taxa: Optional[float] = None
+    cart_valor_liquido: Optional[float] = None
+    cart_parcelas: Optional[int] = None
 
 
 class LancamentoResumo(BaseModel):

@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-APP_VERSION = os.getenv("APP_VERSION", "0.4.0")
+APP_VERSION = os.getenv("APP_VERSION", "0.5.0")
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",

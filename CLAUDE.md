@@ -154,7 +154,7 @@ All share the same filter DTO: `data_inicio`, `data_fim` (defaults: today → to
 | --------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `DATABASE_URL`      | `postgresql://db_financeiro:fin_pass@localhost:5432/financeiro_encontro` | DB connection string                                                                                |
 | `APP_PORT`          | `8000`                                                          | Port uvicorn listens on                                                                              |
-| `APP_VERSION`       | `0.4.0`                                                         | App version, shown in `/health`                                                                     |
+| `APP_VERSION`       | `0.5.0`                                                         | App version, shown in `/health`                                                                     |
 | `JWT_SECRET`        | `changeme-insecure-secret`                                      | JWT signing key — always override in production                                                    |
 | `JWT_ALGORITHM`     | `HS256`                                                         | JWT algorithm                                                                                         |
 | `JWT_EXPIRE_MINUTES`| `480`                                                           | Token expiry (8 hours)                                                                                |

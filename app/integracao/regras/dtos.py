@@ -32,6 +32,7 @@ class CandidatoLancamento:
     valor: Decimal
     soma_detalhamentos: Decimal
     forma_pagamento: FormaPagamento
+    cart_parcelas: Optional[int] = None
 
 
 @dataclass
@@ -41,3 +42,4 @@ class ItemDetalhamento:
     tipo: TipoDetalhamento
     valor: Decimal
     referencia_id: Optional[int]
+    descricao: Optional[str] = None

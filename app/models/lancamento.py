@@ -53,6 +53,14 @@ class Lancamento(Base):
     data_pagamento = Column(DateTime, nullable=False)
     hash_transacao = Column(String(255), nullable=True, unique=True, index=True) # 🔥 usado para evitar duplicação via CSV
     observacao = Column(String(255), nullable=True)
+
+    # Só preenchidas para lançamentos gerados a partir do extrato da maquininha
+    # de cartão (ver CartaoService) -- cart_taxa != None é o jeito de saber se
+    # um lançamento veio de lá.
+    cart_taxa = Column(Float, nullable=True)
+    cart_valor_liquido = Column(Float, nullable=True)
+    cart_parcelas = Column(Integer, nullable=True)
+
     criado_em = Column(DateTime(timezone=True), server_default=func.now())
     atualizado_em = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

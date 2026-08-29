@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(docker volume *)",
+      "Bash(docker exec *)",
+      "Bash(docker port *)",
+      "Bash(docker run *)",
+      "Bash(python -c \"import alembic.config\")",
+      "Bash(alembic heads *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git checkout *)",
+      "Bash(python -c ' *)",
+      "Bash(alembic current *)"
+    ]
+  }
+}

@@ -1,3 +1,4 @@
+from dataclasses import replace
 from decimal import Decimal
 from typing import List, Optional
 
@@ -61,6 +62,7 @@ def _selecionar_lancamento(db: Session, pendencia: PendenciaAuditoria) -> Option
             valor=to_decimal(candidato.valor),
             soma_detalhamentos=to_decimal(candidato.soma_detalhamentos),
             forma_pagamento=candidato.forma_pagamento,
+            cart_parcelas=candidato.cart_parcelas,
         )
         for candidato in candidatos_orm
     ]
@@ -92,6 +94,7 @@ def _criar_detalhamentos(db: Session, lancamento: Lancamento, itens: list[ItemDe
                 "tipo": item.tipo,
                 "referencia_id": item.referencia_id,
                 "valor": item.valor,
+                "descricao": item.descricao or "",
             })
         except BadRequestException as e:
             return str(e)
@@ -133,11 +136,22 @@ def _processar_pendentes(db: Session, modelo: Encontreiro | Encontrista, tipo_de
         valor_resto_lancamento = to_decimal(lancamento.valor) - to_decimal(lancamento.soma_detalhamentos)
         permite_fallback = valor_resto_lancamento >= (to_decimal(lancamento.valor) - _TOLERANCIA)
 
+        # Lançamento veio do extrato de cartão: a igreja só fica com o valor
+        # líquido (o resto é taxa da maquininha), então a extração usa o
+        # líquido no lugar do bruto -- a taxa vira um Detalhamento à parte
+        # logo abaixo. A Etapa A (match), acima, já rodou com o pagamento
+        # original (bruto), que é o que bate com o valor do lançamento.
+        eh_cartao = lancamento.cart_taxa is not None
+        pendencia_para_extracao = (
+            replace(pendencia_auditoria, pagamento=to_decimal(lancamento.cart_valor_liquido))
+            if eh_cartao else pendencia_auditoria
+        )
+
         grupoRegras = RegraRepository.list_ativos_por_escopos(
             db, [_ESCOPO_POR_TIPO[tipo_detalhamento]]
         )
         itens = extrair_detalhamentos(
-            pendencia_auditoria, grupoRegras, tipo_detalhamento, permite_fallback
+            pendencia_para_extracao, grupoRegras, tipo_detalhamento, permite_fallback
         )
 
         if not itens:
@@ -152,6 +166,14 @@ def _processar_pendentes(db: Session, modelo: Encontreiro | Encontrista, tipo_de
                 ),
             })
             continue
+
+        if eh_cartao:
+            itens = itens + [ItemDetalhamento(
+                tipo=TipoDetalhamento.OUTRO,
+                valor=to_decimal(lancamento.cart_taxa),
+                referencia_id=None,
+                descricao="Taxa do Cartão",
+            )]
 
         error_message = _criar_detalhamentos(db, lancamento, itens)
 

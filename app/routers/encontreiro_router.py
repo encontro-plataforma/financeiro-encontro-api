@@ -79,6 +79,8 @@ def conciliar(
 ):
     upload = EncontreiroService.iniciar_conciliacao(file, db)
     background_tasks.add_task(
-        EncontreiroService.processar_em_background, upload.id, upload.conteudo_csv
+        EncontreiroService.processar_em_background,
+        upload.id.value,
+        upload.conteudo_csv.value,
     )
     return {"upload_id": upload.id, "status": upload.status}

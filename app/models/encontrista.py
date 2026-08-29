@@ -33,6 +33,8 @@ class Encontrista(Base):
 
     circulo_id = Column(Integer, ForeignKey("circulos.id", ondelete="SET NULL"), nullable=True)
 
+    onde_veio_ficha = Column(String(150), nullable=False, server_default="")
+
     instagram = Column(String(100), nullable=True)
     contato = Column(String(30), nullable=True)
     religiao = Column(String(100), nullable=True)
