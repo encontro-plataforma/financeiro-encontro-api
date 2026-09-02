@@ -1,6 +1,5 @@
-from typing import List, Optional
-
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, UploadFile as FastAPIUploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Query
+from fastapi import UploadFile as FastAPIUploadFile
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -20,24 +19,24 @@ router = APIRouter(prefix="/encontristas", tags=["Secretaria - Encontristas"])
 @router.get("/", response_model=Page[EncontristaResponse])
 def list_encontristas(
     params: EncontristaFilterDto = Depends(),
-    circulo_ids: Optional[List[int]] = Query(default=None),
+    circulo_ids: list[int] | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
     params.circulo_ids = circulo_ids
     return EncontristaService.list(db, params)
 
 
-@router.get("/all", response_model=List[EncontristaResponse])
+@router.get("/all", response_model=list[EncontristaResponse])
 def list_all(
     params: EncontristaFilterDto = Depends(),
-    circulo_ids: Optional[List[int]] = Query(default=None),
+    circulo_ids: list[int] | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
     params.circulo_ids = circulo_ids
     return EncontristaService.list_all(db, params)
 
 
-@router.get("/padrinhos-disponiveis", response_model=List[PadrinhoResumo])
+@router.get("/padrinhos-disponiveis", response_model=list[PadrinhoResumo])
 def padrinhos_disponiveis(db: Session = Depends(get_db)):
     return EncontristaService.padrinhos_disponiveis(db)
 
@@ -58,11 +57,17 @@ def update(
     data: EncontristaUpdate,
     db: Session = Depends(get_db),
 ):
-    return EncontristaService.update(db, encontrista_id, data.model_dump(exclude_none=True))
+    return EncontristaService.update(
+        db, encontrista_id, data.model_dump(exclude_none=True)
+    )
 
 
-@router.patch("/{encontrista_id}/circulo/{circulo_id}", response_model=EncontristaResponse)
-def alterar_circulo(encontrista_id: int, circulo_id: int, db: Session = Depends(get_db)):
+@router.patch(
+    "/{encontrista_id}/circulo/{circulo_id}", response_model=EncontristaResponse
+)
+def alterar_circulo(
+    encontrista_id: int, circulo_id: int, db: Session = Depends(get_db)
+):
     return EncontristaService.alterar_circulo(db, encontrista_id, circulo_id)
 
 
