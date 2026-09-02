@@ -3,9 +3,9 @@
     "configurations": [
         {
             "name": "FastAPI: Debug backend",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
-            "python": "${workspaceFolder}/venv/Scripts/python.exe",
+            "python": "${workspaceFolder}/venv/bin/python",
             "cwd": "${workspaceFolder}",
             "envFile": "${workspaceFolder}/.env",
             "env": {
@@ -15,7 +15,9 @@
             "args": [
                 "app.main:app",
                 "--host",
-                "0.0.0.0"
+                "0.0.0.0",
+                "--port",
+                "8000"
             ],
             "console": "integratedTerminal",
             "justMyCode": true,
@@ -23,7 +25,7 @@
         },
         {
             "name": "Attach to uvicorn",
-            "type": "python",
+            "type": "debugpy",
             "request": "attach",
             "connect": {
                 "host": "localhost",

@@ -1,11 +1,12 @@
-from sqlalchemy.orm import Session
-from app.repositories.upload_file_repository import UploadFileRepository
-from app.core.exceptions import NotFoundException
 from datetime import datetime
+
+from sqlalchemy.orm import Session
+
+from app.core.exceptions import NotFoundException
+from app.repositories.upload_file_repository import UploadFileRepository
 
 
 class UploadFileService:
-
     @staticmethod
     def list_all(db: Session, params):
         return UploadFileRepository.list_all(db, params)
@@ -18,7 +19,7 @@ class UploadFileService:
             "items": items,
             "total": total,
             "skip": params.skip,
-            "limit": params.limit
+            "limit": params.limit,
         }
 
     @staticmethod
@@ -67,7 +68,7 @@ class UploadFileService:
                 "error_code": error_code,
                 "error_message": error_message,
                 "resultado_processamento": resultado_processamento,
-            }
+            },
         )
 
     @staticmethod
