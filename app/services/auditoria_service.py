@@ -23,9 +23,9 @@ from app.models.enums import (
 from app.models.lancamento import Lancamento
 from app.repositories.regra_repository import RegraRepository
 from app.services.detalhamento_service import DetalhamentoService
-from app.utils.decimal_utils import to_decimal
+from app.utils.decimal_utils import TOLERANCIA_VINCULO, to_decimal
 
-_TOLERANCIA = Decimal("0.01")
+_TOLERANCIA = TOLERANCIA_VINCULO
 
 _ESCOPO_POR_TIPO = {
     TipoDetalhamento.INSCRICAO_ENCONTREIRO: EscopoRegraGrupo.EXTRACAO_ENCONTREIRO,
@@ -127,6 +127,13 @@ def _processar_pendentes(
     vinculados = 0
     nao_auditados = []
 
+    # Fase 1 (pagamentos múltiplos): "auditado" agora é soma dos vínculos vs
+    # `pagamento` (tolerância R$0,01) — uma pessoa parcialmente paga continua
+    # aparecendo aqui em rodadas seguintes do motor. Isso é o comportamento
+    # desejado para permitir vários lançamentos por pessoa, mas _selecionar_lancamento
+    # abaixo/`_buscar_candidatos` ainda comparam o candidato contra o `pagamento`
+    # TOTAL da ficha, não contra o saldo restante — matching automático por saldo
+    # é Fase 2, não implementado aqui.
     insc_pendentes: list[Encontreiro | Encontrista] = (
         db.query(modelo)
         .filter(

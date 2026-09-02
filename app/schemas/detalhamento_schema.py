@@ -5,6 +5,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.models.enums import TipoDetalhamento
+from app.schemas.lancamento_schema import LancamentoResumo
 
 
 class DetalhamentoResponse(BaseModel):
@@ -21,6 +22,25 @@ class DetalhamentoResponse(BaseModel):
     detalhe_nome: str = ""
     observacao_efetiva: str = ""
     criado_em: datetime
+    # Resumo do lançamento vinculado — usado pela listagem de Encontreiros/
+    # Encontristas para montar o menu "escolher lançamento" quando a pessoa
+    # tem mais de um vínculo, sem precisar de uma chamada extra por lançamento.
+    lancamento: Optional[LancamentoResumo] = None
+
+    class Config:
+        from_attributes = True
+
+
+class DetalhamentoVinculoResumo(BaseModel):
+    """Um vínculo de inscrição (Encontreiro/Encontrista) com um lançamento,
+    já com o resumo do lançamento embutido — usado em
+    EncontreiroResponse/EncontristaResponse.detalhamentos_vinculados."""
+
+    id: int
+    lancamento_id: int
+    tipo: TipoDetalhamento
+    valor: Decimal
+    lancamento: LancamentoResumo
 
     class Config:
         from_attributes = True

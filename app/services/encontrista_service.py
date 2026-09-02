@@ -7,15 +7,15 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import NotFoundException
 from app.database.session import SessionLocal
 from app.integracao.secretaria import encontrista_parser
-from app.models.detalhamento import Detalhamento
 from app.models.encontrista import Encontrista
-from app.models.enums import StatusProcessamento, TipoDetalhamento
+from app.models.enums import StatusProcessamento
 from app.models.upload_file import UploadFile
 from app.repositories.circulo_repository import CirculoRepository
 from app.repositories.encontreiro_repository import EncontreiroRepository
 from app.repositories.encontrista_repository import EncontristaRepository
 from app.services.auditoria_service import AuditoriaService
 from app.services.upload_file_service import UploadFileService
+from app.services.vinculo_pessoa_service import enriquecer_vinculos
 from app.utils.parse_utils import parse_bool, parse_date_br, parse_decimal_br
 
 logger = logging.getLogger("uvicorn.error")
@@ -60,16 +60,7 @@ class EncontristaService:
         if not obj:
             raise NotFoundException("Encontrista")
 
-        detalhamento = (
-            db.query(Detalhamento)
-            .filter(
-                Detalhamento.tipo == TipoDetalhamento.INSCRICAO_ENCONTRISTA,
-                Detalhamento.referencia_id == obj.id,
-            )
-            .first()
-        )
-        obj.detalhamento_id = detalhamento.id if detalhamento else None
-        obj.lancamento_vinculado = detalhamento.lancamento if detalhamento else None
+        enriquecer_vinculos(db, obj)
 
         return obj
 

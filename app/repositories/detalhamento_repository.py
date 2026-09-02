@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.detalhamento import Detalhamento
 from app.utils.sort_utils import apply_sort
@@ -36,6 +36,19 @@ class DetalhamentoRepository:
         query = _apply_filters(query, params)
         query = apply_sort(query, Detalhamento, params.sort, SORT_FIELDS, DEFAULT_SORT)
         return query.all()
+
+    @staticmethod
+    def list_by_referencia(db: Session, tipo, referencia_id: int) -> list[Detalhamento]:
+        """Todos os Detalhamentos de inscrição de uma pessoa (Encontreiro/Encontrista),
+        do mais antigo pro mais recente — usado tanto pela validação de saldo
+        (DetalhamentoService) quanto pelo enriquecimento de vínculos (vinculo_pessoa_service)."""
+        return (
+            db.query(Detalhamento)
+            .options(joinedload(Detalhamento.lancamento))
+            .filter(Detalhamento.tipo == tipo, Detalhamento.referencia_id == referencia_id)
+            .order_by(Detalhamento.criado_em.asc())
+            .all()
+        )
 
     @staticmethod
     def list_with_count(db: Session, params):

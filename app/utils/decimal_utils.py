@@ -1,6 +1,8 @@
 from decimal import Decimal
 from typing import Optional
 
+TOLERANCIA_VINCULO = Decimal("0.01")
+
 
 def to_decimal(valor: Optional[object]) -> Decimal:
     """Converte para Decimal via str() (evita o erro de arredondamento de

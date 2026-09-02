@@ -5,6 +5,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 from app.models.enums import SituacaoCamisa
+from app.schemas.detalhamento_schema import DetalhamentoVinculoResumo
 from app.schemas.equipe_schema import EquipeResponse
 from app.schemas.lancamento_schema import LancamentoResumo
 
@@ -34,9 +35,19 @@ class EncontreiroResponse(BaseModel):
     observacao: Optional[str]
     criado_em: datetime
     auditado: bool
+    # Campos legados (compatibilidade) — representam sempre o vínculo mais
+    # antigo (criado_em asc), mesmo quando há vários. Preferir os campos
+    # abaixo para lidar com múltiplos pagamentos.
     detalhamento_id: Optional[int] = None
     lancamento_vinculado_id: Optional[int] = None
     lancamento_vinculado: Optional[LancamentoResumo] = None
+    # Só vêm populados no GET /encontreiros/{id} (detalhe); na listagem ficam
+    # como [] — não significa "sem vínculos", só "não carregado nesta resposta".
+    detalhamentos_vinculados: list[DetalhamentoVinculoResumo] = []
+    lancamentos_vinculados: list[LancamentoResumo] = []
+    total_vinculado: Decimal = Decimal("0")
+    saldo_pendente: Optional[Decimal] = None
+    quantidade_vinculos: int = 0
 
     class Config:
         from_attributes = True

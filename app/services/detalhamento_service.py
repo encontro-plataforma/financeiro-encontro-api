@@ -9,7 +9,8 @@ from app.models.enums import StatusLancamento, TipoDetalhamento, TipoLancamento
 from app.repositories.encontreiro_repository import EncontreiroRepository
 from app.repositories.encontrista_repository import EncontristaRepository
 from app.repositories.finalidade_repository import FinalidadeRepository
-from app.utils.decimal_utils import to_decimal
+from app.services.vinculo_pessoa_service import calcular_saldo_pendente, excede_saldo_pessoa
+from app.utils.decimal_utils import TOLERANCIA_VINCULO, to_decimal
 
 _ROTULO_POR_TIPO = {
     TipoDetalhamento.OFERTA: "OFERTA",
@@ -18,7 +19,7 @@ _ROTULO_POR_TIPO = {
 
 _TIPOS_INSCRICAO = {TipoDetalhamento.INSCRICAO_ENCONTREIRO, TipoDetalhamento.INSCRICAO_ENCONTRISTA}
 
-_TOLERANCIA = Decimal("0.01")
+_TOLERANCIA = TOLERANCIA_VINCULO
 
 
 class DetalhamentoService:
@@ -111,6 +112,51 @@ class DetalhamentoService:
             )
 
     @staticmethod
+    def _validar_referencia_pessoa(db: Session, tipo, referencia_id):
+        """Para INSCRICAO_*, confirma que referencia_id aponta pra uma pessoa
+        existente e do tipo compatível (Encontreiro para INSCRICAO_ENCONTREIRO,
+        Encontrista para INSCRICAO_ENCONTRISTA). Retorna a pessoa (reaproveitada
+        por _validar_soma_pessoa) ou None para OFERTA/OUTRO, que não referenciam
+        ninguém."""
+        if tipo not in _TIPOS_INSCRICAO:
+            return None
+
+        if referencia_id is None:
+            raise BadRequestException("Detalhamentos de inscrição precisam de referencia_id.")
+
+        if tipo == TipoDetalhamento.INSCRICAO_ENCONTREIRO:
+            pessoa = EncontreiroRepository.get_by_id(db, referencia_id)
+            if not pessoa:
+                raise NotFoundException("Encontreiro")
+        else:
+            pessoa = EncontristaRepository.get_by_id(db, referencia_id)
+            if not pessoa:
+                raise NotFoundException("Encontrista")
+
+        return pessoa
+
+    @staticmethod
+    def _validar_soma_pessoa(db: Session, tipo, referencia_id, pessoa, novo_valor, excluir_id: int = None):
+        """Espelha _validar_soma, mas do lado da pessoa: a soma dos Detalhamentos
+        de inscrição dela (possivelmente em vários lançamentos) não pode
+        ultrapassar o `pagamento` total esperado da ficha, com a mesma
+        tolerância de R$0,01."""
+        if pessoa is None or pessoa.pagamento is None:
+            return
+
+        existentes = DetalhamentoRepository.list_by_referencia(db, tipo, referencia_id)
+        soma_outros = sum((d.valor for d in existentes if d.id != excluir_id), Decimal("0"))
+        valor_decimal = to_decimal(novo_valor)
+        pagamento = to_decimal(pessoa.pagamento)
+
+        if excede_saldo_pessoa(soma_outros, valor_decimal, pagamento):
+            saldo = calcular_saldo_pendente(soma_outros, pagamento)
+            raise BadRequestException(
+                f"Não é possível vincular R$ {valor_decimal:.2f} a esta inscrição: "
+                f"o saldo pendente da pessoa é de apenas R$ {saldo:.2f}."
+            )
+
+    @staticmethod
     def _sincronizar_status_lancamento(db: Session, lancamento_id: int):
         """Concilia automaticamente o lançamento quando a soma dos detalhamentos
         atinge (ou ultrapassa, dentro da tolerância) o valor total."""
@@ -161,6 +207,8 @@ class DetalhamentoService:
     def create(db: Session, data: dict):
         DetalhamentoService._validar_vinculo_permitido(db, data["lancamento_id"])
         DetalhamentoService._validar_soma(db, data["lancamento_id"], data["valor"])
+        pessoa = DetalhamentoService._validar_referencia_pessoa(db, data["tipo"], data.get("referencia_id"))
+        DetalhamentoService._validar_soma_pessoa(db, data["tipo"], data.get("referencia_id"), pessoa, data["valor"])
         obj = DetalhamentoRepository.create(db, data)
         DetalhamentoService._sincronizar_status_lancamento(db, data["lancamento_id"])
         DetalhamentoService._aplicar_finalidade_inscricao(db, data["lancamento_id"], obj.tipo)
@@ -181,6 +229,13 @@ class DetalhamentoService:
 
         novo_valor = data.get("valor", obj.valor)
         DetalhamentoService._validar_soma(db, lancamento_id_novo, novo_valor, excluir_id=detalhamento_id)
+
+        tipo_novo = data.get("tipo", obj.tipo)
+        referencia_id_novo = data.get("referencia_id", obj.referencia_id)
+        pessoa = DetalhamentoService._validar_referencia_pessoa(db, tipo_novo, referencia_id_novo)
+        DetalhamentoService._validar_soma_pessoa(
+            db, tipo_novo, referencia_id_novo, pessoa, novo_valor, excluir_id=detalhamento_id
+        )
 
         obj = DetalhamentoRepository.update(db, obj, data)
 
