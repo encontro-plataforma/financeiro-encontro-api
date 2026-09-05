@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
-from app.models.enums import TipoLancamento, FormaPagamento, StatusLancamento
+
+from pydantic import BaseModel, Field
+
+from app.models.enums import FormaPagamento, StatusLancamento, TipoLancamento
 from app.schemas.finalidade_schema import FinalidadeResponse
 
 
@@ -11,12 +12,12 @@ class LancamentoBase(BaseModel):
     tipo: TipoLancamento
     forma_pagamento: FormaPagamento
     data_pagamento: datetime
-    finalidade_id: Optional[int]
-    sugestao_finalidade: Optional[int] = None
-    observacao: Optional[str] = None
-    cart_taxa: Optional[float] = None
-    cart_valor_liquido: Optional[float] = None
-    cart_parcelas: Optional[int] = None
+    finalidade_id: int | None
+    sugestao_finalidade: int | None = None
+    observacao: str | None = None
+    cart_taxa: float | None = None
+    cart_valor_liquido: float | None = None
+    cart_parcelas: int | None = None
 
 
 class LancamentoCreate(LancamentoBase):
@@ -28,22 +29,22 @@ class DetalhamentoFinalDto(BaseModel):
 
 
 class LancamentoConciliarRequest(BaseModel):
-    observacao: Optional[str] = None
-    detalhamento_final: Optional[DetalhamentoFinalDto] = None
+    observacao: str | None = None
+    detalhamento_final: DetalhamentoFinalDto | None = None
 
 
 class LancamentoUpdate(BaseModel):
-    descricao: Optional[str] = None
-    valor: Optional[float] = None
-    tipo: Optional[TipoLancamento] = None
-    forma_pagamento: Optional[FormaPagamento] = None
-    status: Optional[StatusLancamento] = None
-    data_pagamento: Optional[datetime] = None
-    finalidade_id: Optional[int] = None
-    observacao: Optional[str] = None
-    cart_taxa: Optional[float] = None
-    cart_valor_liquido: Optional[float] = None
-    cart_parcelas: Optional[int] = None
+    descricao: str | None = None
+    valor: float | None = None
+    tipo: TipoLancamento | None = None
+    forma_pagamento: FormaPagamento | None = None
+    status: StatusLancamento | None = None
+    data_pagamento: datetime | None = None
+    finalidade_id: int | None = None
+    observacao: str | None = None
+    cart_taxa: float | None = None
+    cart_valor_liquido: float | None = None
+    cart_parcelas: int | None = None
 
 
 class LancamentoResumo(BaseModel):
@@ -61,13 +62,13 @@ class LancamentoResumo(BaseModel):
 class LancamentoResponse(LancamentoBase):
     id: int
     status: StatusLancamento
-    finalidade: Optional[FinalidadeResponse] = None
-    sugestao_finalidade: Optional[FinalidadeResponse] = None
+    finalidade: FinalidadeResponse | None = None
+    sugestao_finalidade: FinalidadeResponse | None = None
     quantidade_detalhamentos: int = 0
     soma_detalhamentos: float = 0
 
     criado_em: datetime
-    atualizado_em: Optional[datetime] = None
+    atualizado_em: datetime | None = None
 
     class Config:
         from_attributes = True

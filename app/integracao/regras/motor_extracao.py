@@ -1,12 +1,14 @@
 import re
 from decimal import Decimal, InvalidOperation
-from typing import Optional
 
 from app.integracao.regras.dtos import ItemDetalhamento, PendenciaAuditoria
 from app.models.enums import ModoExtracaoRegra, TipoDetalhamento
 from app.utils.parse_utils import remover_acentos
 
-_TIPOS_INSCRICAO = {TipoDetalhamento.INSCRICAO_ENCONTREIRO, TipoDetalhamento.INSCRICAO_ENCONTRISTA}
+_TIPOS_INSCRICAO = {
+    TipoDetalhamento.INSCRICAO_ENCONTREIRO,
+    TipoDetalhamento.INSCRICAO_ENCONTRISTA,
+}
 
 # Conectores comuns em português que separam o nome do valor em observações
 # tipo "Fulano de 100 reais" sem fazerem parte do nome de ninguém.
@@ -14,14 +16,14 @@ _CONECTORES_NOME = {"de", "da", "do", "das", "dos", "e", "para", "no", "na"}
 _TOKEN_NOME_OU_VALOR = re.compile(r"[a-z]+|\d+(?:[.,]\d{2})?")
 
 
-def _parse_valor(bruto: str) -> Optional[Decimal]:
+def _parse_valor(bruto: str) -> Decimal | None:
     try:
         return Decimal(bruto.replace(".", "").replace(",", "."))
     except InvalidOperation:
         return None
 
 
-def _valor_com_regex(regra, texto_normalizado: str) -> Optional[Decimal]:
+def _valor_com_regex(regra, texto_normalizado: str) -> Decimal | None:
     """Modo TOKEN_VALOR: todas as RegraCondicao da regra precisam casar (AND)
     para a regra "casar". O valor do Detalhamento vem do primeiro grupo de
     captura não vazio da primeira condição, em ordem, que tiver um — um
@@ -40,7 +42,9 @@ def _valor_com_regex(regra, texto_normalizado: str) -> Optional[Decimal]:
     return valor
 
 
-def _valor_por_token_de_nome(nome_pessoa: str, texto_normalizado: str) -> Optional[Decimal]:
+def _valor_por_token_de_nome(
+    nome_pessoa: str, texto_normalizado: str
+) -> Decimal | None:
     """Modo NOME_NA_LISTA: cobre um único pagamento cobrindo várias
     inscrições nomeadas na mesma observação (ex.: "Luiza Rochelle de 100
     reais, Samuel Augusto de 100 reais..."). Ancora na primeira palavra do
@@ -61,7 +65,9 @@ def _valor_por_token_de_nome(nome_pessoa: str, texto_normalizado: str) -> Option
     if not palavras_nome:
         return None
 
-    ancora = re.search(r"\b" + re.escape(palavras_nome[0]) + r"\b", texto_normalizado, re.IGNORECASE)
+    ancora = re.search(
+        r"\b" + re.escape(palavras_nome[0]) + r"\b", texto_normalizado, re.IGNORECASE
+    )
     if not ancora:
         return None
 
@@ -75,7 +81,13 @@ def _valor_por_token_de_nome(nome_pessoa: str, texto_normalizado: str) -> Option
     return None
 
 
-def _valor_se_regra_bater(regra, pendencia: PendenciaAuditoria, texto_normalizado: str) -> Optional[Decimal]:
+def _valor_se_regra_bater(
+    regra, pendencia: PendenciaAuditoria, texto_normalizado: str
+) -> Decimal | None:
+    if regra.tipo_detalhamento_resultado == TipoDetalhamento.OUTRO and re.search(
+        r"\bsem\s+biscoitos?\b", texto_normalizado
+    ):
+        return None
     if regra.modo_extracao == ModoExtracaoRegra.NOME_NA_LISTA:
         return _valor_por_token_de_nome(pendencia.nome, texto_normalizado)
     return _valor_com_regex(regra, texto_normalizado)
@@ -107,7 +119,9 @@ def extrair_detalhamentos(
         for regra in grupo.regras:
             if not regra.ativo:
                 continue
-            regras_por_tipo.setdefault(regra.tipo_detalhamento_resultado, []).append(regra)
+            regras_por_tipo.setdefault(regra.tipo_detalhamento_resultado, []).append(
+                regra
+            )
 
     itens: list[ItemDetalhamento] = []
     for tipo, regras in regras_por_tipo.items():
@@ -117,14 +131,18 @@ def extrair_detalhamentos(
                 continue
 
             referencia_id = pendencia_auditoria.id if tipo in _TIPOS_INSCRICAO else None
-            itens.append(ItemDetalhamento(tipo=tipo, valor=valor, referencia_id=referencia_id))
+            itens.append(
+                ItemDetalhamento(tipo=tipo, valor=valor, referencia_id=referencia_id)
+            )
             break
 
     if not itens and permite_fallback:
-        itens.append(ItemDetalhamento(
-            tipo=tipo_detalhamento,
-            valor=pendencia_auditoria.pagamento,
-            referencia_id=pendencia_auditoria.id,
-        ))
+        itens.append(
+            ItemDetalhamento(
+                tipo=tipo_detalhamento,
+                valor=pendencia_auditoria.pagamento,
+                referencia_id=pendencia_auditoria.id,
+            )
+        )
 
     return itens

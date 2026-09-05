@@ -1,3 +1,4 @@
+import re
 from dataclasses import replace
 from decimal import Decimal
 
@@ -24,6 +25,7 @@ from app.models.lancamento import Lancamento
 from app.repositories.regra_repository import RegraRepository
 from app.services.detalhamento_service import DetalhamentoService
 from app.utils.decimal_utils import to_decimal
+from app.utils.parse_utils import remover_acentos
 
 _TOLERANCIA = Decimal("0.01")
 
@@ -121,6 +123,13 @@ def _criar_detalhamentos(
     return None
 
 
+def _eh_pagamento_multiplo(observacao: str | None) -> bool:
+    """Identifica duas ou mais pessoas com valores na mesma observação."""
+    texto = remover_acentos(observacao or "").lower()
+    trecho_pessoas = texto.split(" para ", 1)[-1] if " para " in texto else ""
+    return len(re.findall(r"\bde\s+\d+(?:[.,]\d{2})?\s+reais?\b", trecho_pessoas)) >= 2
+
+
 def _processar_pendentes(
     db: Session, modelo: Encontreiro | Encontrista, tipo_detalhamento: TipoDetalhamento
 ):
@@ -197,7 +206,7 @@ def _processar_pendentes(
             )
             continue
 
-        if eh_cartao:
+        if eh_cartao and not _eh_pagamento_multiplo(pendencia_auditoria.observacao):
             itens = itens + [
                 ItemDetalhamento(
                     tipo=TipoDetalhamento.OUTRO,

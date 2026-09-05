@@ -1,21 +1,59 @@
-from sqlalchemy import case, func
+from sqlalchemy import and_, case, func
 from sqlalchemy.orm import Session
 
-from app.models.enums import TipoLancamento
+from app.models.enums import FormaPagamento, TipoLancamento
 from app.models.finalidade import Finalidade
 from app.models.lancamento import Lancamento
+
+_FORMAS_CARTAO = (
+    FormaPagamento.CARTAO_CREDITO,
+    FormaPagamento.CARTAO_DEBITO,
+)
+
+
+def _valor_contabil_expr():
+    return case(
+        (
+            and_(
+                Lancamento.tipo == TipoLancamento.RECEITA,
+                Lancamento.forma_pagamento.in_(_FORMAS_CARTAO),
+            ),
+            func.coalesce(Lancamento.cart_valor_liquido, Lancamento.valor),
+        ),
+        else_=Lancamento.valor,
+    )
 
 
 def _receitas_expr():
     return func.coalesce(
-        func.sum(case((Lancamento.tipo == TipoLancamento.RECEITA, Lancamento.valor), else_=0)),
+        func.sum(
+            case(
+                (Lancamento.tipo == TipoLancamento.RECEITA, _valor_contabil_expr()),
+                else_=0,
+            )
+        ),
         0,
     )
 
 
 def _despesas_expr():
     return func.coalesce(
-        func.sum(case((Lancamento.tipo == TipoLancamento.DESPESA, Lancamento.valor), else_=0)),
+        func.sum(
+            case(
+                (
+                    and_(
+                        Lancamento.tipo == TipoLancamento.DESPESA,
+                        ~and_(
+                            Lancamento.forma_pagamento.in_(_FORMAS_CARTAO),
+                            Lancamento.finalidade_id == 114,
+                            Lancamento.descricao.ilike("TAXA: %"),
+                        ),
+                    ),
+                    Lancamento.valor,
+                ),
+                else_=0,
+            )
+        ),
         0,
     )
 
@@ -42,7 +80,6 @@ def _apply_filters(query, params):
 
 
 class DashboardRepository:
-
     @staticmethod
     def get_totais(db: Session, params):
         query = db.query(
@@ -55,27 +92,35 @@ class DashboardRepository:
     @staticmethod
     def get_por_dia(db: Session, params):
         dia_col = func.date_trunc("day", Lancamento.data_pagamento).label("dia")
-        query = db.query(
-            dia_col,
-            _receitas_expr().label("total_receitas"),
-            _despesas_expr().label("total_despesas"),
-        ).group_by(dia_col).order_by(dia_col)
+        query = (
+            db.query(
+                dia_col,
+                _receitas_expr().label("total_receitas"),
+                _despesas_expr().label("total_despesas"),
+            )
+            .group_by(dia_col)
+            .order_by(dia_col)
+        )
         return _apply_filters(query, params).all()
 
     @staticmethod
     def get_por_mes(db: Session, params):
         mes_col = func.date_trunc("month", Lancamento.data_pagamento).label("mes")
-        query = db.query(
-            mes_col,
-            _receitas_expr().label("total_receitas"),
-            _despesas_expr().label("total_despesas"),
-        ).group_by(mes_col).order_by(mes_col)
+        query = (
+            db.query(
+                mes_col,
+                _receitas_expr().label("total_receitas"),
+                _despesas_expr().label("total_despesas"),
+            )
+            .group_by(mes_col)
+            .order_by(mes_col)
+        )
         return _apply_filters(query, params).all()
 
     @staticmethod
     def get_por_finalidade(db: Session, params):
         nome_col = func.coalesce(Finalidade.nome, "Não Conciliado").label("nome")
-        total_col = func.sum(Lancamento.valor).label("total_valor")
+        total_col = func.sum(_valor_contabil_expr()).label("total_valor")
         count_col = func.count(Lancamento.id).label("quantidade")
 
         query = db.query(
@@ -87,6 +132,6 @@ class DashboardRepository:
 
         query = _apply_filters(query, params)
         query = query.group_by(Lancamento.finalidade_id, Finalidade.nome)
-        query = query.order_by(func.sum(Lancamento.valor).desc())
+        query = query.order_by(func.sum(_valor_contabil_expr()).desc())
 
         return query.all()

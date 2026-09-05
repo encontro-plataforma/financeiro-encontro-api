@@ -37,7 +37,6 @@ def _parse_idade(valor):
 
 
 class EncontristaService:
-
     @staticmethod
     def list_all(db: Session, params):
         return EncontristaRepository.list_all(db, params)
@@ -50,7 +49,7 @@ class EncontristaService:
             "items": items,
             "total": total,
             "skip": params.skip,
-            "limit": params.limit
+            "limit": params.limit,
         }
 
     @staticmethod
@@ -126,7 +125,9 @@ class EncontristaService:
     def _linha_para_dados(db: Session, row, is_new: bool) -> dict:
         padrinho = EncontreiroRepository.get_by_id(db, row.padrinho_id)
         if not padrinho:
-            raise ValueError(f"padrinho (Encontreiro id={row.padrinho_id}) não encontrado")
+            raise ValueError(
+                f"padrinho (Encontreiro id={row.padrinho_id}) não encontrado"
+            )
 
         circulo_id = None
         if row.circulo_nome:
@@ -136,7 +137,8 @@ class EncontristaService:
             else:
                 logger.warning(
                     "Linha %s: círculo '%s' não encontrado, ficará em branco",
-                    row.linha, row.circulo_nome,
+                    row.linha,
+                    row.circulo_nome,
                 )
 
         return {
@@ -181,19 +183,24 @@ class EncontristaService:
         try:
             conteudo_bytes = file.file.read()
             if len(conteudo_bytes) > 3 * 1024 * 1024:
-                raise Exception("Arquivo está acima do limite permitido de tamanho de dados")
-            conteudo = conteudo_bytes.decode('utf-8')
+                raise Exception(
+                    "Arquivo está acima do limite permitido de tamanho de dados"
+                )
+            conteudo = conteudo_bytes.decode("utf-8")
         except UnicodeDecodeError:
             raise Exception(
                 "Erro ao processar arquivo. Utilize o charset UTF-8 para evitar problemas de acentuação."
             )
 
-        return UploadFileService.create(db, {
-            "nome_arquivo": file.filename,
-            "conteudo_csv": conteudo,
-            "tamanho_bytes": len(conteudo.encode('utf-8')),
-            "status": StatusProcessamento.PROCESSANDO,
-        })
+        return UploadFileService.create(
+            db,
+            {
+                "nome_arquivo": file.filename,
+                "conteudo_csv": conteudo,
+                "tamanho_bytes": len(conteudo.encode("utf-8")),
+                "status": StatusProcessamento.PROCESSANDO,
+            },
+        )
 
     @staticmethod
     def processar_em_background(upload_id: int, conteudo: str):
@@ -209,7 +216,9 @@ class EncontristaService:
                 existente = EncontristaRepository.get_by_id(db, row.id)
 
                 try:
-                    dados = EncontristaService._linha_para_dados(db, row, is_new=existente is None)
+                    dados = EncontristaService._linha_para_dados(
+                        db, row, is_new=existente is None
+                    )
                 except ValueError as exc:
                     raise ValueError(f"Linha {row.linha}: {exc}") from exc
 
@@ -228,9 +237,11 @@ class EncontristaService:
                 inseridos += 1
 
             if inseridos:
-                db.execute(text(
-                    "SELECT setval('encontristas_id_seq', (SELECT MAX(id) FROM encontristas))"
-                ))
+                db.execute(
+                    text(
+                        "SELECT setval('encontristas_id_seq', (SELECT MAX(id) FROM encontristas))"
+                    )
+                )
 
             db.commit()
 
@@ -244,7 +255,9 @@ class EncontristaService:
             }
 
             UploadFileService.update_status(
-                db, upload_id, StatusProcessamento.PROCESSADO,
+                db,
+                upload_id,
+                StatusProcessamento.PROCESSADO,
                 resultado_processamento=json.dumps(resultado, ensure_ascii=False),
             )
 
@@ -252,7 +265,9 @@ class EncontristaService:
 
         except Exception as e:
             db.rollback()
-            logger.exception("Erro ao processar CSV de encontristas (upload_id=%s)", upload_id)
+            logger.exception(
+                "Erro ao processar CSV de encontristas (upload_id=%s)", upload_id
+            )
             UploadFileService.update_status(
                 db,
                 upload_id,

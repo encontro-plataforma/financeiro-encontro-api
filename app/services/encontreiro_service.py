@@ -33,7 +33,6 @@ def _parse_situacao(valor, default=None):
 
 
 class EncontreiroService:
-
     @staticmethod
     def list_all(db: Session, params):
         return EncontreiroRepository.list_all(db, params)
@@ -46,7 +45,7 @@ class EncontreiroService:
             "items": items,
             "total": total,
             "skip": params.skip,
-            "limit": params.limit
+            "limit": params.limit,
         }
 
     @staticmethod
@@ -111,8 +110,8 @@ class EncontreiroService:
     @staticmethod
     def _linha_para_dados(db: Session, row, is_new: bool) -> dict:
         if row.equipe_nome == None or row.equipe_nome == "N/A":
-            return { "observacao": "CANCELADO" }
-        
+            return {"observacao": "CANCELADO"}
+
         equipe_id = None
         if row.equipe_nome:
             equipe = EquipeRepository.get_by_nome(db, row.equipe_nome)
@@ -141,7 +140,9 @@ class EncontreiroService:
             "alergia_comorbidade": row.alergia_comorbidade,
             "equipe_id": equipe_id,
             "camisa": row.camisa,
-            "situacao_camisa": _parse_situacao(row.situacao_camisa, default=situacao_default),
+            "situacao_camisa": _parse_situacao(
+                row.situacao_camisa, default=situacao_default
+            ),
             "veiculo": row.veiculo,
             "dt_pagamento": parse_date_br(row.dt_pagamento),
             "nome_pagador": row.nome_pagador,
@@ -159,19 +160,24 @@ class EncontreiroService:
         try:
             conteudo_bytes = file.file.read()
             if len(conteudo_bytes) > 3 * 1024 * 1024:
-                raise Exception("Arquivo está acima do limite permitido de tamanho de dados")
-            conteudo = conteudo_bytes.decode('utf-8')
+                raise Exception(
+                    "Arquivo está acima do limite permitido de tamanho de dados"
+                )
+            conteudo = conteudo_bytes.decode("utf-8")
         except UnicodeDecodeError:
             raise Exception(
                 "Erro ao processar arquivo. Utilize o charset UTF-8 para evitar problemas de acentuação."
             )
 
-        return UploadFileService.create(db, {
-            "nome_arquivo": file.filename,
-            "conteudo_csv": conteudo,
-            "tamanho_bytes": len(conteudo.encode('utf-8')),
-            "status": StatusProcessamento.PROCESSANDO,
-        })
+        return UploadFileService.create(
+            db,
+            {
+                "nome_arquivo": file.filename,
+                "conteudo_csv": conteudo,
+                "tamanho_bytes": len(conteudo.encode("utf-8")),
+                "status": StatusProcessamento.PROCESSANDO,
+            },
+        )
 
     @staticmethod
     def processar_em_background(upload_id: int, conteudo: str):
@@ -188,10 +194,12 @@ class EncontreiroService:
                 existente = EncontreiroRepository.get_by_id(db, row.id)
 
                 try:
-                    dados = EncontreiroService._linha_para_dados(db, row, is_new=existente is None)
-                    if dados['observacao'] == 'CANCELADO':
-                        continue # DADO CANCELADO, IGNORAR LINHA
-                
+                    dados = EncontreiroService._linha_para_dados(
+                        db, row, is_new=existente is None
+                    )
+                    if dados["observacao"] == "CANCELADO":
+                        continue  # DADO CANCELADO, IGNORAR LINHA
+
                 except ValueError as exc:
                     raise ValueError(f"Linha {row.linha}: {exc}") from exc
 
@@ -203,17 +211,22 @@ class EncontreiroService:
                     atualizados += 1
                     continue
 
-                duplicado = EncontreiroRepository.get_by_nome_telefone(db, dados["nome"], dados["telefone"])
+                duplicado = EncontreiroRepository.get_by_nome_telefone(
+                    db, dados["nome"], dados["telefone"]
+                )
                 if duplicado:
                     logger.warning(
                         "Linha %s ignorada: já existe Encontreiro id=%s com o mesmo nome/telefone",
-                        row.linha, duplicado.id,
+                        row.linha,
+                        duplicado.id,
                     )
-                    ignorados.append({
-                        "linha": row.linha,
-                        "id_csv": row.id,
-                        "encontreiro_existente_id": duplicado.id,
-                    })
+                    ignorados.append(
+                        {
+                            "linha": row.linha,
+                            "id_csv": row.id,
+                            "encontreiro_existente_id": duplicado.id,
+                        }
+                    )
                     continue
 
                 novo = Encontreiro(id=row.id, **dados)
@@ -225,9 +238,11 @@ class EncontreiroService:
                 inseridos += 1
 
             if inseridos:
-                db.execute(text(
-                    "SELECT setval('encontreiros_id_seq', (SELECT MAX(id) FROM encontreiros))"
-                ))
+                db.execute(
+                    text(
+                        "SELECT setval('encontreiros_id_seq', (SELECT MAX(id) FROM encontreiros))"
+                    )
+                )
 
             db.commit()
 
@@ -243,7 +258,9 @@ class EncontreiroService:
             }
 
             UploadFileService.update_status(
-                db, upload_id, StatusProcessamento.PROCESSADO,
+                db,
+                upload_id,
+                StatusProcessamento.PROCESSADO,
                 resultado_processamento=json.dumps(resultado, ensure_ascii=False),
             )
 
@@ -251,7 +268,9 @@ class EncontreiroService:
 
         except Exception as e:
             db.rollback()
-            logger.exception("Erro ao processar CSV de encontreiros (upload_id=%s)", upload_id)
+            logger.exception(
+                "Erro ao processar CSV de encontreiros (upload_id=%s)", upload_id
+            )
             UploadFileService.update_status(
                 db,
                 upload_id,
