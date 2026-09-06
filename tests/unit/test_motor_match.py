@@ -164,3 +164,19 @@ def test_especie_e_tratado_como_sinonimo_de_dinheiro():
     pix = _candidato(2, "JOAO DA SILVA", "100", FormaPagamento.PIX)
 
     assert selecionar_lancamento(pendencia, [dinheiro, pix]) is dinheiro
+
+
+def test_credito_sozinho_sem_a_palavra_cartao_e_tratado_como_cartao_credito():
+    pendencia = _pendencia(observacao="Pagamento via crédito em 1 parcela de R$ 100,00")
+    credito = _candidato(1, "JOAO DA SILVA", "100", FormaPagamento.CARTAO_CREDITO)
+    pix = _candidato(2, "JOAO DA SILVA", "100", FormaPagamento.PIX)
+
+    assert selecionar_lancamento(pendencia, [pix, credito]) is credito
+
+
+def test_debito_sozinho_sem_acento_e_tratado_como_cartao_debito():
+    pendencia = _pendencia(observacao="Pagamento via debito de R$ 100,00")
+    debito = _candidato(1, "JOAO DA SILVA", "100", FormaPagamento.CARTAO_DEBITO)
+    credito = _candidato(2, "JOAO DA SILVA", "100", FormaPagamento.CARTAO_CREDITO)
+
+    assert selecionar_lancamento(pendencia, [credito, debito]) is debito

@@ -68,7 +68,19 @@ def _regras_padrao(escopo: EscopoRegraGrupo, tipo_inscricao: TipoDetalhamento) -
             "tipo_detalhamento_resultado": tipo_inscricao,
             "modo_extracao": ModoExtracaoRegra.TOKEN_VALOR,
             "condicoes": [
-                RegraCondicao(ordem=1, padrao_regex=r"pagamento\s+via\D*?(\d+(?:[.,]\d{2})?)"),
+                # Exige o "de" literal antes do valor (o \D*? antigo parava no
+                # primeiro dígito depois de "via", que podia ser o número de
+                # parcelas -- ex.: "via cartao de credito em 3 parcelas de R$
+                # 160,00" capturava "3" em vez de "160,00"). Usar ".*?" (que
+                # também pula dígitos) até um "de" respeita a semântica real
+                # da regra -- "o valor vem logo depois de um 'de'" -- e o
+                # "de" de "cartao de credito" é automaticamente descartado
+                # porque não é seguido de um valor, forçando a busca a
+                # continuar até o "de" que precede o valor de fato.
+                RegraCondicao(
+                    ordem=1,
+                    padrao_regex=r"pagamento\s+via.*?de\s*r?\$?\s*(\d+(?:[.,]\d{2})?)",
+                ),
             ],
         })
 
@@ -95,7 +107,13 @@ def _regras_padrao(escopo: EscopoRegraGrupo, tipo_inscricao: TipoDetalhamento) -
             "condicoes": [
                 RegraCondicao(
                     ordem=1,
-                    padrao_regex=r"(?:biscoitos?\D*?(\d+(?:[.,]\d{2})?)|(\d+(?:[.,]\d{2})?)\D*?biscoitos?)",
+                    # [^\d/] em vez de \D: sem isso, "R$ 80,00 / Biscoitos: R$ 20,00"
+                    # deixava o ramo "valor antes de biscoito" pular por cima da
+                    # barra e capturar o valor da inscrição (80,00) em vez do
+                    # valor que está de fato ao lado de "biscoito" (20,00) — a
+                    # barra e outro dígito não colidem, então continuam servindo
+                    # de fronteira entre campos distintos da observação.
+                    padrao_regex=r"(?:biscoitos?[^\d/]*?(\d+(?:[.,]\d{2})?)|(\d+(?:[.,]\d{2})?)[^\d/]*?biscoitos?)",
                 ),
                 RegraCondicao(ordem=2, padrao_regex=r"(?s)^(?:(?!pacotes?|pct\b).)*$"),
                 RegraCondicao(ordem=3, padrao_regex=r"pagamento\s+via\D*?\d+(?:[.,]\d{2})?"),

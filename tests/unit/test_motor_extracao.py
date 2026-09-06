@@ -5,6 +5,7 @@ from app.database.seeds.seed_regras import _PADRAO_INSCRICAO, _PADRAO_OFERTA
 from app.integracao.regras.dtos import PendenciaAuditoria
 from app.integracao.regras.motor_extracao import (
     _valor_por_token_de_nome,
+    diagnosticar_detalhamentos,
     extrair_detalhamentos,
 )
 from app.models.enums import ModoExtracaoRegra, TipoDetalhamento
@@ -97,7 +98,8 @@ def _grupo_inscricao_encontrista():
                 modo_extracao=ModoExtracaoRegra.TOKEN_VALOR,
                 condicoes=[
                     RegraCondicao(
-                        ordem=1, padrao_regex=r"pagamento\s+via\D*?(\d+(?:[.,]\d{2})?)"
+                        ordem=1,
+                        padrao_regex=r"pagamento\s+via.*?de\s*r?\$?\s*(\d+(?:[.,]\d{2})?)",
                     )
                 ],
             ),
@@ -118,7 +120,7 @@ def _grupo_inscricao_encontrista():
                 condicoes=[
                     RegraCondicao(
                         ordem=1,
-                        padrao_regex=r"(?:biscoitos?\D*?(\d+(?:[.,]\d{2})?)|(\d+(?:[.,]\d{2})?)\D*?biscoitos?)",
+                        padrao_regex=r"(?:biscoitos?[^\d/]*?(\d+(?:[.,]\d{2})?)|(\d+(?:[.,]\d{2})?)[^\d/]*?biscoitos?)",
                     ),
                     RegraCondicao(
                         ordem=2, padrao_regex=r"(?s)^(?:(?!pacotes?|pct\b).)*$"
@@ -169,6 +171,53 @@ def test_biscoitos_em_reais_gera_inscricao_mais_outro():
     assert inscricao.referencia_id == pendencia.id
     assert outro.valor == Decimal(20)
     assert outro.referencia_id is None
+
+
+def test_biscoitos_separado_por_barra_usa_valor_ao_lado_do_biscoito():
+    # "R$ 160,00 / Biscoitos: R$ 20,00" -- o valor da inscrição aparece
+    # primeiro, separado só por uma barra e ":" do valor do biscoito. O
+    # extrator não pode confundir os dois e pegar o valor da inscrição.
+    pendencia = _pendencia(
+        pagamento="160",
+        observacao="Pagamento via PIX de R$ 160,00 / Biscoitos: R$ 20,00",
+    )
+    grupos = [_grupo_inscricao_encontrista()]
+
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTRISTA
+    )
+
+    assert len(itens) == 2
+    inscricao = next(
+        i for i in itens if i.tipo == TipoDetalhamento.INSCRICAO_ENCONTRISTA
+    )
+    outro = next(i for i in itens if i.tipo == TipoDetalhamento.OUTRO)
+    assert inscricao.valor == Decimal(160)
+    assert outro.valor == Decimal(20)
+
+
+def test_numero_de_parcelas_no_meio_da_observacao_nao_e_confundido_com_valor():
+    # "em 3 parcelas" antes do "de R$ 160,00" não pode fazer a regra
+    # capturar "3" como se fosse o valor da inscrição.
+    pendencia = _pendencia(
+        pagamento="160",
+        observacao=(
+            "Pagamento via cartão de crédito em 3 parcelas de R$ 160,00 "
+            "/ 20,00 reais para Biscoitos"
+        ),
+    )
+    grupos = [_grupo_inscricao_encontrista()]
+
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTRISTA
+    )
+
+    inscricao = next(
+        i for i in itens if i.tipo == TipoDetalhamento.INSCRICAO_ENCONTRISTA
+    )
+    outro = next(i for i in itens if i.tipo == TipoDetalhamento.OUTRO)
+    assert inscricao.valor == Decimal("160.00")
+    assert outro.valor == Decimal("20.00")
 
 
 def test_biscoito_sem_valor_de_inscricao_nao_cria_nada():
@@ -451,6 +500,28 @@ def test_sem_biscoitos_nao_cria_outro_mesmo_com_pagamento_multiplo():
 
     assert [(item.tipo, item.valor) for item in itens] == [
         (TipoDetalhamento.INSCRICAO_ENCONTRISTA, Decimal(160))
+    ]
+
+
+def test_diagnostico_retorna_regras_e_detalhamentos_por_regra():
+    pendencia = _pendencia(
+        pagamento="100",
+        observacao="Pagamento via PIX de R$ 100,00 reais com 20 reais de biscoitos",
+    )
+
+    diagnosticos = diagnosticar_detalhamentos(
+        pendencia, [_grupo_inscricao_encontrista()]
+    )
+
+    assert [
+        (regra.nome, itens[0].tipo, itens[0].valor) for regra, itens in diagnosticos
+    ] == [
+        (
+            "Inscrição (valor no pagamento)",
+            TipoDetalhamento.INSCRICAO_ENCONTRISTA,
+            Decimal(100),
+        ),
+        ("Biscoitos", TipoDetalhamento.OUTRO, Decimal(20)),
     ]
 
 

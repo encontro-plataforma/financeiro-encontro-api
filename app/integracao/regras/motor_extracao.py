@@ -3,6 +3,7 @@ from decimal import Decimal, InvalidOperation
 
 from app.integracao.regras.dtos import ItemDetalhamento, PendenciaAuditoria
 from app.models.enums import ModoExtracaoRegra, TipoDetalhamento
+from app.models.regra import Regra
 from app.utils.parse_utils import remover_acentos
 
 _TIPOS_INSCRICAO = {
@@ -146,3 +147,38 @@ def extrair_detalhamentos(
         )
 
     return itens
+
+
+def diagnosticar_detalhamentos(
+    pendencia_auditoria: PendenciaAuditoria,
+    grupos: list,
+) -> list[tuple[Regra, list[ItemDetalhamento]]]:
+    """Retorna somente as regras que casaram e os itens que elas gerariam."""
+    texto = remover_acentos(pendencia_auditoria.observacao or "").lower()
+    regras_por_tipo: dict = {}
+    for grupo in grupos:
+        for regra in grupo.regras:
+            if regra.ativo:
+                regras_por_tipo.setdefault(
+                    regra.tipo_detalhamento_resultado, []
+                ).append(regra)
+
+    resultado = []
+    for tipo, regras in regras_por_tipo.items():
+        for regra in sorted(regras, key=lambda r: r.ordem):
+            valor = _valor_se_regra_bater(regra, pendencia_auditoria, texto)
+            if valor is None or valor <= 0:
+                continue
+            referencia_id = pendencia_auditoria.id if tipo in _TIPOS_INSCRICAO else None
+            resultado.append(
+                (
+                    regra,
+                    [
+                        ItemDetalhamento(
+                            tipo=tipo, valor=valor, referencia_id=referencia_id
+                        )
+                    ],
+                )
+            )
+            break
+    return resultado

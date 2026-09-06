@@ -11,10 +11,15 @@ _TOLERANCIA = Decimal("0.01")
 # Compostos ("cartao de credito"/"cartao de debito") avaliados antes do
 # genérico ("cartao"), senão o genérico casaria primeiro e mascararia o
 # débito. "Cartão" sozinho (sem dizer crédito/débito) é tratado como crédito.
+# "Crédito"/"débito" também são reconhecidos sozinhos, sem a palavra
+# "cartão" junto (ex.: "pagamento via crédito em 1 parcela") — sempre como
+# cartão, já que não existe crédito/débito fora de cartão neste domínio.
 _TOKENS_FORMA_PAGAMENTO = [
     (re.compile(r"cartao\s+de\s+credito"), FormaPagamento.CARTAO_CREDITO),
     (re.compile(r"cartao\s+de\s+debito"), FormaPagamento.CARTAO_DEBITO),
     (re.compile(r"cartao"), FormaPagamento.CARTAO_CREDITO),
+    (re.compile(r"\bcredito\b"), FormaPagamento.CARTAO_CREDITO),
+    (re.compile(r"\bdebito\b"), FormaPagamento.CARTAO_DEBITO),
     (re.compile(r"pix"), FormaPagamento.PIX),
     (re.compile(r"dinheiro"), FormaPagamento.DINHEIRO),
     (re.compile(r"especie"), FormaPagamento.DINHEIRO),

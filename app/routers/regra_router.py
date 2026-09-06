@@ -1,5 +1,3 @@
-from typing import List
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -10,10 +8,24 @@ from app.schemas.regra_schema import (
     RegraGrupoCreate,
     RegraGrupoResponse,
     RegraGrupoUpdate,
+    TesteObservacaoRequest,
+    TesteObservacaoResponse,
 )
 from app.services.regra_service import RegraService
 
 router = APIRouter(prefix="/regras", tags=["Regras"])
+
+
+@router.get(
+    "/grupos/{grupo_id}/test-observacao",
+    response_model=TesteObservacaoResponse,
+)
+def test_observacao(
+    grupo_id: int,
+    data: TesteObservacaoRequest = Depends(),
+    db: Session = Depends(get_db),
+):
+    return RegraService.testar_observacao(db, grupo_id, data.observacao, data.nome)
 
 
 @router.get("/grupos", response_model=Page[RegraGrupoResponse])
@@ -24,7 +36,7 @@ def list_grupos(
     return RegraService.list(db, params)
 
 
-@router.get("/grupos/all", response_model=List[RegraGrupoResponse])
+@router.get("/grupos/all", response_model=list[RegraGrupoResponse])
 def list_all_grupos(
     params: RegraGrupoFilterDto = Depends(),
     db: Session = Depends(get_db),
