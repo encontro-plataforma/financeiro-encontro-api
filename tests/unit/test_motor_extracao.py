@@ -3,7 +3,11 @@ from decimal import Decimal
 
 from app.database.seeds.seed_regras import _PADRAO_INSCRICAO, _PADRAO_OFERTA
 from app.integracao.regras.dtos import PendenciaAuditoria
-from app.integracao.regras.motor_extracao import _valor_por_token_de_nome, extrair_detalhamentos
+from app.integracao.regras.motor_extracao import (
+    _valor_por_token_de_nome,
+    diagnosticar_detalhamentos,
+    extrair_detalhamentos,
+)
 from app.models.enums import ModoExtracaoRegra, TipoDetalhamento
 from app.models.regra import Regra
 from app.models.regra_condicao import RegraCondicao
@@ -24,71 +28,105 @@ def _pendencia(pagamento="100", observacao=None, pessoa_id=1, nome="Joao da Silv
 def _grupo_inscricao_encontreiro(inscricao_ativa=True, com_lista_compartilhada=True):
     regras = [
         Regra(
-            nome="Inscrição", ordem=1, ativo=inscricao_ativa,
+            nome="Inscrição",
+            ordem=1,
+            ativo=inscricao_ativa,
             tipo_detalhamento_resultado=TipoDetalhamento.INSCRICAO_ENCONTREIRO,
             modo_extracao=ModoExtracaoRegra.TOKEN_VALOR,
             condicoes=[RegraCondicao(ordem=1, padrao_regex=_PADRAO_INSCRICAO)],
         ),
         Regra(
-            nome="Oferta", ordem=3, ativo=True,
+            nome="Oferta",
+            ordem=3,
+            ativo=True,
             tipo_detalhamento_resultado=TipoDetalhamento.OFERTA,
             modo_extracao=ModoExtracaoRegra.TOKEN_VALOR,
             condicoes=[RegraCondicao(ordem=1, padrao_regex=_PADRAO_OFERTA)],
         ),
     ]
     if com_lista_compartilhada:
-        regras.insert(1, Regra(
-            nome="Inscrição (lista compartilhada)", ordem=2, ativo=True,
-            tipo_detalhamento_resultado=TipoDetalhamento.INSCRICAO_ENCONTREIRO,
-            modo_extracao=ModoExtracaoRegra.NOME_NA_LISTA,
-            condicoes=[],
-        ))
+        regras.insert(
+            1,
+            Regra(
+                nome="Inscrição (lista compartilhada)",
+                ordem=2,
+                ativo=True,
+                tipo_detalhamento_resultado=TipoDetalhamento.INSCRICAO_ENCONTREIRO,
+                modo_extracao=ModoExtracaoRegra.NOME_NA_LISTA,
+                condicoes=[],
+            ),
+        )
 
     return RegraGrupo(
-        nome="EXTRACAO_ENCONTREIRO", escopo="EXTRACAO_ENCONTREIRO", ordem=10, ativo=True,
+        nome="EXTRACAO_ENCONTREIRO",
+        escopo="EXTRACAO_ENCONTREIRO",
+        ordem=10,
+        ativo=True,
         regras=regras,
     )
 
 
 def _grupo_inscricao_encontrista():
     return RegraGrupo(
-        nome="EXTRACAO_ENCONTRISTA", escopo="EXTRACAO_ENCONTRISTA", ordem=10, ativo=True,
+        nome="EXTRACAO_ENCONTRISTA",
+        escopo="EXTRACAO_ENCONTRISTA",
+        ordem=10,
+        ativo=True,
         regras=[
             Regra(
-                nome="Inscrição", ordem=1, ativo=True,
+                nome="Inscrição",
+                ordem=1,
+                ativo=True,
                 tipo_detalhamento_resultado=TipoDetalhamento.INSCRICAO_ENCONTRISTA,
                 modo_extracao=ModoExtracaoRegra.TOKEN_VALOR,
                 condicoes=[RegraCondicao(ordem=1, padrao_regex=_PADRAO_INSCRICAO)],
             ),
             Regra(
-                nome="Inscrição (lista compartilhada)", ordem=2, ativo=True,
+                nome="Inscrição (lista compartilhada)",
+                ordem=2,
+                ativo=True,
                 tipo_detalhamento_resultado=TipoDetalhamento.INSCRICAO_ENCONTRISTA,
                 modo_extracao=ModoExtracaoRegra.NOME_NA_LISTA,
                 condicoes=[],
             ),
             Regra(
-                nome="Inscrição (valor no pagamento)", ordem=3, ativo=True,
+                nome="Inscrição (valor no pagamento)",
+                ordem=3,
+                ativo=True,
                 tipo_detalhamento_resultado=TipoDetalhamento.INSCRICAO_ENCONTRISTA,
                 modo_extracao=ModoExtracaoRegra.TOKEN_VALOR,
-                condicoes=[RegraCondicao(ordem=1, padrao_regex=r"pagamento\s+via\D*?(\d+(?:[.,]\d{2})?)")],
+                condicoes=[
+                    RegraCondicao(
+                        ordem=1,
+                        padrao_regex=r"pagamento\s+via.*?de\s*r?\$?\s*(\d+(?:[.,]\d{2})?)",
+                    )
+                ],
             ),
             Regra(
-                nome="Oferta", ordem=4, ativo=True,
+                nome="Oferta",
+                ordem=4,
+                ativo=True,
                 tipo_detalhamento_resultado=TipoDetalhamento.OFERTA,
                 modo_extracao=ModoExtracaoRegra.TOKEN_VALOR,
                 condicoes=[RegraCondicao(ordem=1, padrao_regex=_PADRAO_OFERTA)],
             ),
             Regra(
-                nome="Biscoitos", ordem=5, ativo=True,
+                nome="Biscoitos",
+                ordem=5,
+                ativo=True,
                 tipo_detalhamento_resultado=TipoDetalhamento.OUTRO,
                 modo_extracao=ModoExtracaoRegra.TOKEN_VALOR,
                 condicoes=[
                     RegraCondicao(
                         ordem=1,
-                        padrao_regex=r"(?:biscoitos?\D*?(\d+(?:[.,]\d{2})?)|(\d+(?:[.,]\d{2})?)\D*?biscoitos?)",
+                        padrao_regex=r"(?:biscoitos?[^\d/]*?(\d+(?:[.,]\d{2})?)|(\d+(?:[.,]\d{2})?)[^\d/]*?biscoitos?)",
                     ),
-                    RegraCondicao(ordem=2, padrao_regex=r"(?s)^(?:(?!pacotes?|pct\b).)*$"),
-                    RegraCondicao(ordem=3, padrao_regex=r"pagamento\s+via\D*?\d+(?:[.,]\d{2})?"),
+                    RegraCondicao(
+                        ordem=2, padrao_regex=r"(?s)^(?:(?!pacotes?|pct\b).)*$"
+                    ),
+                    RegraCondicao(
+                        ordem=3, padrao_regex=r"pagamento\s+via\D*?\d+(?:[.,]\d{2})?"
+                    ),
                 ],
             ),
         ],
@@ -96,14 +134,19 @@ def _grupo_inscricao_encontrista():
 
 
 def test_biscoitos_em_pacotes_nao_gera_detalhamento_extra():
-    pendencia = _pendencia(pagamento="160", observacao="Pagamento via PIX de R$ 160,00 reais / Biscoitos de 6 pacotes")
+    pendencia = _pendencia(
+        pagamento="160",
+        observacao="Pagamento via PIX de R$ 160,00 reais / Biscoitos de 6 pacotes",
+    )
     grupos = [_grupo_inscricao_encontrista()]
 
-    itens = extrair_detalhamentos(pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTRISTA)
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTRISTA
+    )
 
     assert len(itens) == 1
     assert itens[0].tipo == TipoDetalhamento.INSCRICAO_ENCONTRISTA
-    assert itens[0].valor == Decimal("160")
+    assert itens[0].valor == Decimal(160)
     assert itens[0].referencia_id == pendencia.id
 
 
@@ -114,15 +157,66 @@ def test_biscoitos_em_reais_gera_inscricao_mais_outro():
     )
     grupos = [_grupo_inscricao_encontrista()]
 
-    itens = extrair_detalhamentos(pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTRISTA)
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTRISTA
+    )
 
     assert len(itens) == 2
-    inscricao = next(i for i in itens if i.tipo == TipoDetalhamento.INSCRICAO_ENCONTRISTA)
+    inscricao = next(
+        i for i in itens if i.tipo == TipoDetalhamento.INSCRICAO_ENCONTRISTA
+    )
     outro = next(i for i in itens if i.tipo == TipoDetalhamento.OUTRO)
-    assert inscricao.valor == Decimal("160")
+    assert inscricao.valor == Decimal(160)
     assert inscricao.referencia_id == pendencia.id
-    assert outro.valor == Decimal("20")
+    assert outro.valor == Decimal(20)
     assert outro.referencia_id is None
+
+
+def test_biscoitos_separado_por_barra_usa_valor_ao_lado_do_biscoito():
+    # "R$ 160,00 / Biscoitos: R$ 20,00" -- o valor da inscrição aparece
+    # primeiro, separado só por uma barra e ":" do valor do biscoito. O
+    # extrator não pode confundir os dois e pegar o valor da inscrição.
+    pendencia = _pendencia(
+        pagamento="160",
+        observacao="Pagamento via PIX de R$ 160,00 / Biscoitos: R$ 20,00",
+    )
+    grupos = [_grupo_inscricao_encontrista()]
+
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTRISTA
+    )
+
+    assert len(itens) == 2
+    inscricao = next(
+        i for i in itens if i.tipo == TipoDetalhamento.INSCRICAO_ENCONTRISTA
+    )
+    outro = next(i for i in itens if i.tipo == TipoDetalhamento.OUTRO)
+    assert inscricao.valor == Decimal(160)
+    assert outro.valor == Decimal(20)
+
+
+def test_numero_de_parcelas_no_meio_da_observacao_nao_e_confundido_com_valor():
+    # "em 3 parcelas" antes do "de R$ 160,00" não pode fazer a regra
+    # capturar "3" como se fosse o valor da inscrição.
+    pendencia = _pendencia(
+        pagamento="160",
+        observacao=(
+            "Pagamento via cartão de crédito em 3 parcelas de R$ 160,00 "
+            "/ 20,00 reais para Biscoitos"
+        ),
+    )
+    grupos = [_grupo_inscricao_encontrista()]
+
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTRISTA
+    )
+
+    inscricao = next(
+        i for i in itens if i.tipo == TipoDetalhamento.INSCRICAO_ENCONTRISTA
+    )
+    outro = next(i for i in itens if i.tipo == TipoDetalhamento.OUTRO)
+    assert inscricao.valor == Decimal("160.00")
+    assert outro.valor == Decimal("20.00")
 
 
 def test_biscoito_sem_valor_de_inscricao_nao_cria_nada():
@@ -133,7 +227,10 @@ def test_biscoito_sem_valor_de_inscricao_nao_cria_nada():
     grupos = [_grupo_inscricao_encontrista()]
 
     itens = extrair_detalhamentos(
-        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTRISTA, permite_fallback=False,
+        pendencia,
+        grupos,
+        TipoDetalhamento.INSCRICAO_ENCONTRISTA,
+        permite_fallback=False,
     )
 
     assert itens == []
@@ -143,14 +240,18 @@ def test_token_antes_do_valor_gera_dois_itens():
     pendencia = _pendencia(observacao="Pago em pix a inscricao 90 e 10 de oferta")
     grupos = [_grupo_inscricao_encontreiro()]
 
-    itens = extrair_detalhamentos(pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO)
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO
+    )
 
     assert len(itens) == 2
-    inscricao = next(i for i in itens if i.tipo == TipoDetalhamento.INSCRICAO_ENCONTREIRO)
+    inscricao = next(
+        i for i in itens if i.tipo == TipoDetalhamento.INSCRICAO_ENCONTREIRO
+    )
     oferta = next(i for i in itens if i.tipo == TipoDetalhamento.OFERTA)
-    assert inscricao.valor == Decimal("90")
+    assert inscricao.valor == Decimal(90)
     assert inscricao.referencia_id == pendencia.id
-    assert oferta.valor == Decimal("10")
+    assert oferta.valor == Decimal(10)
     assert oferta.referencia_id is None
 
 
@@ -159,7 +260,9 @@ def test_valor_antes_do_token_tambem_casa():
     pendencia = _pendencia(observacao="Inscricao paga em pix por 90,00 reais")
     grupos = [_grupo_inscricao_encontreiro()]
 
-    itens = extrair_detalhamentos(pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO)
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO
+    )
 
     assert len(itens) == 1
     assert itens[0].tipo == TipoDetalhamento.INSCRICAO_ENCONTREIRO
@@ -167,14 +270,18 @@ def test_valor_antes_do_token_tambem_casa():
 
 
 def test_apenas_oferta_com_valor_apos_o_token():
-    pendencia = _pendencia(pagamento="15", observacao="Oferta paga em pix no valor de 15 reais")
+    pendencia = _pendencia(
+        pagamento="15", observacao="Oferta paga em pix no valor de 15 reais"
+    )
     grupos = [_grupo_inscricao_encontreiro()]
 
-    itens = extrair_detalhamentos(pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO)
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO
+    )
 
     assert len(itens) == 1
     assert itens[0].tipo == TipoDetalhamento.OFERTA
-    assert itens[0].valor == Decimal("15")
+    assert itens[0].valor == Decimal(15)
     assert itens[0].referencia_id is None
 
 
@@ -182,11 +289,13 @@ def test_sem_observacao_cai_no_fallback():
     pendencia = _pendencia(pagamento="150", observacao=None)
     grupos = [_grupo_inscricao_encontreiro()]
 
-    itens = extrair_detalhamentos(pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO)
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO
+    )
 
     assert len(itens) == 1
     assert itens[0].tipo == TipoDetalhamento.INSCRICAO_ENCONTREIRO
-    assert itens[0].valor == Decimal("150")
+    assert itens[0].valor == Decimal(150)
     assert itens[0].referencia_id == pendencia.id
 
 
@@ -194,21 +303,29 @@ def test_observacao_sem_padrao_reconhecido_cai_no_fallback():
     pendencia = _pendencia(pagamento="80", observacao="Pagamento via pix, obrigado!")
     grupos = [_grupo_inscricao_encontreiro()]
 
-    itens = extrair_detalhamentos(pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO)
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO
+    )
 
     assert len(itens) == 1
-    assert itens[0].valor == Decimal("80")
+    assert itens[0].valor == Decimal(80)
 
 
 def test_regra_inativa_e_ignorada():
     pendencia = _pendencia(pagamento="90", observacao="Pago em pix a inscricao 90")
-    grupos = [_grupo_inscricao_encontreiro(inscricao_ativa=False, com_lista_compartilhada=False)]
+    grupos = [
+        _grupo_inscricao_encontreiro(
+            inscricao_ativa=False, com_lista_compartilhada=False
+        )
+    ]
 
-    itens = extrair_detalhamentos(pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO)
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO
+    )
 
     # regra desativada não casa -> cai no fallback (não vira 0 itens)
     assert len(itens) == 1
-    assert itens[0].valor == Decimal("90")
+    assert itens[0].valor == Decimal(90)
 
 
 def test_nome_na_lista_acha_valor_de_cada_pessoa():
@@ -223,37 +340,47 @@ def test_nome_na_lista_acha_valor_de_cada_pessoa():
     giovanna = _pendencia(pessoa_id=3, nome="Giovanna Alves", observacao=observacao)
 
     for pendencia in (luiza, samuel, giovanna):
-        itens = extrair_detalhamentos(pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO)
+        itens = extrair_detalhamentos(
+            pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO
+        )
         assert len(itens) == 1
         assert itens[0].tipo == TipoDetalhamento.INSCRICAO_ENCONTREIRO
-        assert itens[0].valor == Decimal("100")
+        assert itens[0].valor == Decimal(100)
         assert itens[0].referencia_id == pendencia.id
 
 
 def test_nome_na_lista_aceita_so_o_primeiro_nome():
-    observacao = "Pagamento via pix de R$200,00 para Samuel de 100 reais e Giovanna de 100 reais"
+    observacao = (
+        "Pagamento via pix de R$200,00 para Samuel de 100 reais e Giovanna de 100 reais"
+    )
     grupos = [_grupo_inscricao_encontreiro()]
 
     # cadastro tem o nome completo, mas a observação só cita o primeiro nome
     pendencia = _pendencia(nome="Samuel Augusto", observacao=observacao)
 
-    itens = extrair_detalhamentos(pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO)
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO
+    )
 
     assert len(itens) == 1
-    assert itens[0].valor == Decimal("100")
+    assert itens[0].valor == Decimal(100)
 
 
 def test_nome_na_lista_aceita_pedaco_parcial_de_palavra_do_nome():
     # "ourado" é um pedaço de "Dourado" -- ainda assim aceito como parte do nome.
-    valor = _valor_por_token_de_nome("Anderson Dourado Cunha", "pago por anderson ourado cunha 100 reais")
-    assert valor == Decimal("100")
+    valor = _valor_por_token_de_nome(
+        "Anderson Dourado Cunha", "pago por anderson ourado cunha 100 reais"
+    )
+    assert valor == Decimal(100)
 
 
 def test_nome_na_lista_rejeita_palavra_que_nao_pertence_ao_nome():
     # "santos" não está contido em "Anderson Dourado Cunha" -- pode ser outra
     # pessoa (ex.: "Anderson Santos") mencionada na mesma observação, então
     # o trecho fica ambíguo e não deve casar.
-    valor = _valor_por_token_de_nome("Anderson Dourado Cunha", "pago por anderson santos 100 reais")
+    valor = _valor_por_token_de_nome(
+        "Anderson Dourado Cunha", "pago por anderson santos 100 reais"
+    )
     assert valor is None
 
 
@@ -277,13 +404,17 @@ def test_nome_na_lista_com_conector_que_tambem_e_palavra_do_nome():
 
 
 def test_nome_na_lista_nao_bate_cai_no_fallback():
-    pendencia = _pendencia(pagamento="70", nome="Alguem Ausente", observacao="Pagamento via pix de R$70,00")
+    pendencia = _pendencia(
+        pagamento="70", nome="Alguem Ausente", observacao="Pagamento via pix de R$70,00"
+    )
     grupos = [_grupo_inscricao_encontreiro()]
 
-    itens = extrair_detalhamentos(pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO)
+    itens = extrair_detalhamentos(
+        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO
+    )
 
     assert len(itens) == 1
-    assert itens[0].valor == Decimal("70")
+    assert itens[0].valor == Decimal(70)
 
 
 def test_permite_fallback_false_sem_padrao_reconhecido_nao_cria_nada():
@@ -291,11 +422,18 @@ def test_permite_fallback_false_sem_padrao_reconhecido_nao_cria_nada():
     # (permite_fallback=False), e a observação não menciona esta pessoa --
     # não deve inventar um Detalhamento usando o pagamento de referência
     # (que aqui representaria o total do grupo, não o valor real dela).
-    pendencia = _pendencia(pagamento="180", nome="Alguem Ausente", observacao="Pagamento via pix de 180 reais")
+    pendencia = _pendencia(
+        pagamento="180",
+        nome="Alguem Ausente",
+        observacao="Pagamento via pix de 180 reais",
+    )
     grupos = [_grupo_inscricao_encontreiro()]
 
     itens = extrair_detalhamentos(
-        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO, permite_fallback=False,
+        pendencia,
+        grupos,
+        TipoDetalhamento.INSCRICAO_ENCONTREIRO,
+        permite_fallback=False,
     )
 
     assert itens == []
@@ -310,29 +448,89 @@ def test_permite_fallback_false_nao_afeta_regra_que_bate():
         "e Schynaider Sthephane Araujo da Silva Santos de 90 reais"
     )
     grupos = [_grupo_inscricao_encontreiro()]
-    pendencia = _pendencia(pagamento="180", nome="Schynaider Sthephane Araujo da Silva Santos", observacao=observacao)
+    pendencia = _pendencia(
+        pagamento="180",
+        nome="Schynaider Sthephane Araujo da Silva Santos",
+        observacao=observacao,
+    )
 
     itens = extrair_detalhamentos(
-        pendencia, grupos, TipoDetalhamento.INSCRICAO_ENCONTREIRO, permite_fallback=False,
+        pendencia,
+        grupos,
+        TipoDetalhamento.INSCRICAO_ENCONTREIRO,
+        permite_fallback=False,
     )
 
     assert len(itens) == 1
-    assert itens[0].valor == Decimal("90")
+    assert itens[0].valor == Decimal(90)
     assert itens[0].referencia_id == pendencia.id
+
+
+def test_sem_biscoitos_nao_cria_outro_mesmo_com_pagamento_multiplo():
+    observacao = (
+        "Pagamento via pix de R$ 320,00 para Francisco José Ferreira Gomes de 160 reais "
+        "e Maria Thalita Ferreira Lima de 160 reais / SEM BISCOITOS - ALINHADO COM A SOL"
+    )
+    grupos = [_grupo_inscricao_encontrista()]
+
+    pendencia = _pendencia(
+        pagamento="160",
+        nome="Francisco José Ferreira Gomes",
+        observacao=observacao,
+    )
+    itens = extrair_detalhamentos(
+        pendencia,
+        grupos,
+        TipoDetalhamento.INSCRICAO_ENCONTRISTA,
+        permite_fallback=False,
+    )
+
+    assert [(item.tipo, item.valor) for item in itens] == [
+        (TipoDetalhamento.INSCRICAO_ENCONTRISTA, Decimal(160))
+    ]
+
+
+def test_diagnostico_retorna_regras_e_detalhamentos_por_regra():
+    pendencia = _pendencia(
+        pagamento="100",
+        observacao="Pagamento via PIX de R$ 100,00 reais com 20 reais de biscoitos",
+    )
+
+    diagnosticos = diagnosticar_detalhamentos(
+        pendencia, [_grupo_inscricao_encontrista()]
+    )
+
+    assert [
+        (regra.nome, itens[0].tipo, itens[0].valor) for regra, itens in diagnosticos
+    ] == [
+        (
+            "Inscrição (valor no pagamento)",
+            TipoDetalhamento.INSCRICAO_ENCONTRISTA,
+            Decimal(100),
+        ),
+        ("Biscoitos", TipoDetalhamento.OUTRO, Decimal(20)),
+    ]
 
 
 def test_duas_regras_do_mesmo_tipo_so_a_primeira_em_ordem_conta():
     grupo = RegraGrupo(
-        nome="EXTRACAO_ENCONTREIRO", escopo="EXTRACAO_ENCONTREIRO", ordem=10, ativo=True,
+        nome="EXTRACAO_ENCONTREIRO",
+        escopo="EXTRACAO_ENCONTREIRO",
+        ordem=10,
+        ativo=True,
         regras=[
             Regra(
-                nome="Inscrição A", ordem=1, ativo=True,
+                nome="Inscrição A",
+                ordem=1,
+                ativo=True,
                 tipo_detalhamento_resultado=TipoDetalhamento.INSCRICAO_ENCONTREIRO,
                 modo_extracao=ModoExtracaoRegra.TOKEN_VALOR,
                 condicoes=[RegraCondicao(ordem=1, padrao_regex=_PADRAO_INSCRICAO)],
             ),
             Regra(
-                nome="Inscrição B", ordem=2, ativo=True,
+                nome="Inscrição B",
+                ordem=2,
+                ativo=True,
                 tipo_detalhamento_resultado=TipoDetalhamento.INSCRICAO_ENCONTREIRO,
                 modo_extracao=ModoExtracaoRegra.NOME_NA_LISTA,
                 condicoes=[],
@@ -341,9 +539,15 @@ def test_duas_regras_do_mesmo_tipo_so_a_primeira_em_ordem_conta():
     )
     # a regra A (token "inscricao") capturaria 90; a regra B (nome "Joao")
     # capturaria 50 se fosse avaliada — só a de ordem menor (A) deve valer.
-    pendencia = _pendencia(pagamento="90", nome="Joao", observacao="Joao 50 reais, pagamento de 90 de inscricao")
+    pendencia = _pendencia(
+        pagamento="90",
+        nome="Joao",
+        observacao="Joao 50 reais, pagamento de 90 de inscricao",
+    )
 
-    itens = extrair_detalhamentos(pendencia, [grupo], TipoDetalhamento.INSCRICAO_ENCONTREIRO)
+    itens = extrair_detalhamentos(
+        pendencia, [grupo], TipoDetalhamento.INSCRICAO_ENCONTREIRO
+    )
 
     assert len(itens) == 1
-    assert itens[0].valor == Decimal("90")
+    assert itens[0].valor == Decimal(90)

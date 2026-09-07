@@ -1,9 +1,8 @@
-from typing import List
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
+from app.schemas.auditoria_schema import SimulacaoAuditoriaResponse
 from app.schemas.detalhamento_filter_dto import DetalhamentoFilterDto
 from app.schemas.detalhamento_schema import (
     DetalhamentoCreate,
@@ -25,7 +24,7 @@ def list_detalhamentos(
     return DetalhamentoService.list(db, params)
 
 
-@router.get("/all", response_model=List[DetalhamentoResponse])
+@router.get("/all", response_model=list[DetalhamentoResponse])
 def list_all(
     params: DetalhamentoFilterDto = Depends(),
     db: Session = Depends(get_db),
@@ -49,7 +48,9 @@ def update(
     data: DetalhamentoUpdate,
     db: Session = Depends(get_db),
 ):
-    return DetalhamentoService.update(db, detalhamento_id, data.model_dump(exclude_none=True))
+    return DetalhamentoService.update(
+        db, detalhamento_id, data.model_dump(exclude_none=True)
+    )
 
 
 @router.delete("/{detalhamento_id}")
@@ -61,3 +62,11 @@ def delete(detalhamento_id: int, db: Session = Depends(get_db)):
 @router.post("/auditoria")
 def auditoria(db: Session = Depends(get_db)):
     return AuditoriaService.processar(db)
+
+
+@router.get(
+    "/simular-auditoria/{lancamento_id}",
+    response_model=SimulacaoAuditoriaResponse,
+)
+def simular_auditoria(lancamento_id: int, db: Session = Depends(get_db)):
+    return AuditoriaService.simular(db, lancamento_id)

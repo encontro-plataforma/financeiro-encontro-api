@@ -96,6 +96,7 @@ class LancamentoService:
         updated = data.model_dump(exclude_unset=True, exclude_none=True)
 
         forma_pagamento = updated.get("forma_pagamento", obj.forma_pagamento)
+        tipo = updated.get("tipo", obj.tipo)
         if forma_pagamento not in _FORMAS_CARTAO:
             updated["cart_parcelas"] = 0
 
@@ -130,7 +131,7 @@ class LancamentoService:
                     "a este lançamento. Remova-os antes de trocar o tipo."
                 )
 
-        novo_tipo = updated.get("tipo", obj.tipo)
+        novo_tipo = tipo
         if novo_tipo == TipoLancamento.RECEITA and "valor" in updated:
             soma = sum(
                 (

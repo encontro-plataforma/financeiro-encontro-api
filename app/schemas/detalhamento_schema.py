@@ -1,6 +1,5 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -11,7 +10,7 @@ class DetalhamentoResponse(BaseModel):
     id: int
     lancamento_id: int
     tipo: TipoDetalhamento
-    referencia_id: Optional[int]
+    referencia_id: int | None
     valor: Decimal
     descricao: str
     # Calculados na serialização (ver DetalhamentoService): nome de quem foi
@@ -29,14 +28,14 @@ class DetalhamentoResponse(BaseModel):
 class DetalhamentoCreate(BaseModel):
     lancamento_id: int
     tipo: TipoDetalhamento
-    referencia_id: Optional[int] = None
+    referencia_id: int | None = None
     valor: Decimal = Field(..., gt=0)
     descricao: str = ""
 
 
 class DetalhamentoUpdate(BaseModel):
-    lancamento_id: Optional[int] = None
-    tipo: Optional[TipoDetalhamento] = None
-    referencia_id: Optional[int] = None
-    valor: Optional[Decimal] = Field(None, gt=0)
-    descricao: Optional[str] = None
+    lancamento_id: int | None = None
+    tipo: TipoDetalhamento | None = None
+    referencia_id: int | None = None
+    valor: Decimal | None = Field(None, gt=0)
+    descricao: str | None = None

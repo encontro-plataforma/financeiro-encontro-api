@@ -1,12 +1,15 @@
 import re
 from decimal import Decimal, InvalidOperation
-from typing import Optional
 
 from app.integracao.regras.dtos import ItemDetalhamento, PendenciaAuditoria
 from app.models.enums import ModoExtracaoRegra, TipoDetalhamento
+from app.models.regra import Regra
 from app.utils.parse_utils import remover_acentos
 
-_TIPOS_INSCRICAO = {TipoDetalhamento.INSCRICAO_ENCONTREIRO, TipoDetalhamento.INSCRICAO_ENCONTRISTA}
+_TIPOS_INSCRICAO = {
+    TipoDetalhamento.INSCRICAO_ENCONTREIRO,
+    TipoDetalhamento.INSCRICAO_ENCONTRISTA,
+}
 
 # Conectores comuns em português que separam o nome do valor em observações
 # tipo "Fulano de 100 reais" sem fazerem parte do nome de ninguém.
@@ -14,14 +17,14 @@ _CONECTORES_NOME = {"de", "da", "do", "das", "dos", "e", "para", "no", "na"}
 _TOKEN_NOME_OU_VALOR = re.compile(r"[a-z]+|\d+(?:[.,]\d{2})?")
 
 
-def _parse_valor(bruto: str) -> Optional[Decimal]:
+def _parse_valor(bruto: str) -> Decimal | None:
     try:
         return Decimal(bruto.replace(".", "").replace(",", "."))
     except InvalidOperation:
         return None
 
 
-def _valor_com_regex(regra, texto_normalizado: str) -> Optional[Decimal]:
+def _valor_com_regex(regra, texto_normalizado: str) -> Decimal | None:
     """Modo TOKEN_VALOR: todas as RegraCondicao da regra precisam casar (AND)
     para a regra "casar". O valor do Detalhamento vem do primeiro grupo de
     captura não vazio da primeira condição, em ordem, que tiver um — um
@@ -40,7 +43,9 @@ def _valor_com_regex(regra, texto_normalizado: str) -> Optional[Decimal]:
     return valor
 
 
-def _valor_por_token_de_nome(nome_pessoa: str, texto_normalizado: str) -> Optional[Decimal]:
+def _valor_por_token_de_nome(
+    nome_pessoa: str, texto_normalizado: str
+) -> Decimal | None:
     """Modo NOME_NA_LISTA: cobre um único pagamento cobrindo várias
     inscrições nomeadas na mesma observação (ex.: "Luiza Rochelle de 100
     reais, Samuel Augusto de 100 reais..."). Ancora na primeira palavra do
@@ -61,7 +66,9 @@ def _valor_por_token_de_nome(nome_pessoa: str, texto_normalizado: str) -> Option
     if not palavras_nome:
         return None
 
-    ancora = re.search(r"\b" + re.escape(palavras_nome[0]) + r"\b", texto_normalizado, re.IGNORECASE)
+    ancora = re.search(
+        r"\b" + re.escape(palavras_nome[0]) + r"\b", texto_normalizado, re.IGNORECASE
+    )
     if not ancora:
         return None
 
@@ -75,10 +82,71 @@ def _valor_por_token_de_nome(nome_pessoa: str, texto_normalizado: str) -> Option
     return None
 
 
-def _valor_se_regra_bater(regra, pendencia: PendenciaAuditoria, texto_normalizado: str) -> Optional[Decimal]:
+def _valor_se_regra_bater(
+    regra, pendencia: PendenciaAuditoria, texto_normalizado: str
+) -> Decimal | None:
+    if regra.tipo_detalhamento_resultado == TipoDetalhamento.OUTRO and re.search(
+        r"\bsem\s+biscoitos?\b", texto_normalizado
+    ):
+        return None
     if regra.modo_extracao == ModoExtracaoRegra.NOME_NA_LISTA:
         return _valor_por_token_de_nome(pendencia.nome, texto_normalizado)
     return _valor_com_regex(regra, texto_normalizado)
+
+
+def extrair_detalhamentos_com_origem(
+    pendencia_auditoria: PendenciaAuditoria,
+    grupos: list,
+    tipo_detalhamento: TipoDetalhamento,
+    permite_fallback: bool = True,
+) -> list[tuple[ItemDetalhamento, str | None]]:
+    """Mesma Etapa B (Extração) de `extrair_detalhamentos`, mas devolve junto
+    o nome da Regra que gerou cada item — ou None quando o item veio do
+    fallback (nenhuma regra bateu). Existe separado por não ser do interesse
+    do fluxo real de auditoria (que só grava os itens), mas é essencial pra
+    diagnosticar por que um valor saiu errado (ex.: pagamento compartilhado
+    sem nenhuma regra ativa capaz de identificar o valor de cada pessoa,
+    caindo silenciosamente no fallback do valor bruto registrado)."""
+    obs_normalizado = remover_acentos(pendencia_auditoria.observacao or "").lower()
+
+    regras_por_tipo: dict = {}
+    for grupo in grupos:
+        for regra in grupo.regras:
+            if not regra.ativo:
+                continue
+            regras_por_tipo.setdefault(regra.tipo_detalhamento_resultado, []).append(
+                regra
+            )
+
+    itens: list[tuple[ItemDetalhamento, str | None]] = []
+    for tipo, regras in regras_por_tipo.items():
+        for regra in sorted(regras, key=lambda r: r.ordem):
+            valor = _valor_se_regra_bater(regra, pendencia_auditoria, obs_normalizado)
+            if valor is None or valor <= 0:
+                continue
+
+            referencia_id = pendencia_auditoria.id if tipo in _TIPOS_INSCRICAO else None
+            itens.append(
+                (
+                    ItemDetalhamento(tipo=tipo, valor=valor, referencia_id=referencia_id),
+                    regra.nome,
+                )
+            )
+            break
+
+    if not itens and permite_fallback:
+        itens.append(
+            (
+                ItemDetalhamento(
+                    tipo=tipo_detalhamento,
+                    valor=pendencia_auditoria.pagamento,
+                    referencia_id=pendencia_auditoria.id,
+                ),
+                None,
+            )
+        )
+
+    return itens
 
 
 def extrair_detalhamentos(
@@ -100,31 +168,44 @@ def extrair_detalhamentos(
     usá-lo às cegas criaria um Detalhamento errado. Sem regra que consiga
     extrair o valor certo da observação, a função devolve lista vazia e
     nada é criado."""
-    obs_normalizado = remover_acentos(pendencia_auditoria.observacao or "").lower()
+    return [
+        item
+        for item, _ in extrair_detalhamentos_com_origem(
+            pendencia_auditoria, grupos, tipo_detalhamento, permite_fallback
+        )
+    ]
 
+
+def diagnosticar_detalhamentos(
+    pendencia_auditoria: PendenciaAuditoria,
+    grupos: list,
+) -> list[tuple[Regra, list[ItemDetalhamento]]]:
+    """Retorna somente as regras que casaram e os itens que elas gerariam."""
+    texto = remover_acentos(pendencia_auditoria.observacao or "").lower()
     regras_por_tipo: dict = {}
     for grupo in grupos:
         for regra in grupo.regras:
-            if not regra.ativo:
-                continue
-            regras_por_tipo.setdefault(regra.tipo_detalhamento_resultado, []).append(regra)
+            if regra.ativo:
+                regras_por_tipo.setdefault(
+                    regra.tipo_detalhamento_resultado, []
+                ).append(regra)
 
-    itens: list[ItemDetalhamento] = []
+    resultado = []
     for tipo, regras in regras_por_tipo.items():
         for regra in sorted(regras, key=lambda r: r.ordem):
-            valor = _valor_se_regra_bater(regra, pendencia_auditoria, obs_normalizado)
+            valor = _valor_se_regra_bater(regra, pendencia_auditoria, texto)
             if valor is None or valor <= 0:
                 continue
-
             referencia_id = pendencia_auditoria.id if tipo in _TIPOS_INSCRICAO else None
-            itens.append(ItemDetalhamento(tipo=tipo, valor=valor, referencia_id=referencia_id))
+            resultado.append(
+                (
+                    regra,
+                    [
+                        ItemDetalhamento(
+                            tipo=tipo, valor=valor, referencia_id=referencia_id
+                        )
+                    ],
+                )
+            )
             break
-
-    if not itens and permite_fallback:
-        itens.append(ItemDetalhamento(
-            tipo=tipo_detalhamento,
-            valor=pendencia_auditoria.pagamento,
-            referencia_id=pendencia_auditoria.id,
-        ))
-
-    return itens
+    return resultado

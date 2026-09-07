@@ -6,12 +6,7 @@ from sqlalchemy.orm import Session
 from app.database.session import SessionLocal
 from app.integracao.conciliacao.models.cartao_dto import CartaoLinhaDTO
 from app.integracao.conciliacao.parsers.cartao_parser import CartaoParser
-from app.models.enums import (
-    StatusLancamento,
-    StatusProcessamento,
-    TipoLancamento,
-    TipoOrigemUpload,
-)
+from app.models.enums import StatusProcessamento, TipoLancamento, TipoOrigemUpload
 from app.models.upload_file import UploadFile
 from app.services.auditoria_service import AuditoriaService
 from app.services.lancamento_service import LancamentoService
@@ -103,28 +98,6 @@ class CartaoService:
             },
         )
 
-        if linha.valor_taxa > 0:
-            descricao_taxa = f"TAXA: {descricao}"
-            LancamentoService.create(
-                db,
-                {
-                    "descricao": descricao_taxa,
-                    "valor": linha.valor_taxa,
-                    "tipo": TipoLancamento.DESPESA,
-                    "forma_pagamento": linha.forma_pagamento,
-                    "data_pagamento": linha.data,
-                    "hash_transacao": gerar_hash(
-                        descricao_taxa, linha.valor_taxa, linha.data, observacao
-                    ),
-                    "observacao": observacao,
-                    "cart_taxa": 0,
-                    "cart_valor_liquido": 0,
-                    "cart_parcelas": 0,
-                    "finalidade_id": 114,
-                    "sugestao_finalidade_id": None,
-                },
-                status=StatusLancamento.CONCILIADO,
-            )
         return {"duplicado": False}
 
     @staticmethod

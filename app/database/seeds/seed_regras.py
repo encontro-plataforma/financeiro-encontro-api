@@ -37,21 +37,29 @@ DEFAULT_GRUPOS = [
 
 def _regras_padrao(escopo: EscopoRegraGrupo, tipo_inscricao: TipoDetalhamento) -> list[dict]:
     regras = [
-        {
-            "nome": "Inscrição",
-            "ordem": 1,
-            "ativo": True,
-            "tipo_detalhamento_resultado": tipo_inscricao,
-            "modo_extracao": ModoExtracaoRegra.TOKEN_VALOR,
-            "condicoes": [RegraCondicao(ordem=1, padrao_regex=_PADRAO_INSCRICAO)],
-        },
+        # "Lista compartilhada" vem antes da genérica "Inscrição": ela só
+        # produz valor quando o nome da própria pessoa aparece de fato perto
+        # de um valor no texto, então é sempre a mais precisa quando bate.
+        # Colocá-la depois faria a genérica (que só exige a palavra
+        # "inscricao" perto de um número, sem checar nome nenhum) sequestrar
+        # o match de observações com múltiplas inscrições nomeadas -- toda
+        # pessoa da lista receberia o mesmo primeiro valor encontrado, esteja
+        # ou não o nome dela na observação.
         {
             "nome": "Inscrição (lista compartilhada)",
-            "ordem": 2,
+            "ordem": 1,
             "ativo": True,
             "tipo_detalhamento_resultado": tipo_inscricao,
             "modo_extracao": ModoExtracaoRegra.NOME_NA_LISTA,
             "condicoes": [],
+        },
+        {
+            "nome": "Inscrição",
+            "ordem": 2,
+            "ativo": True,
+            "tipo_detalhamento_resultado": tipo_inscricao,
+            "modo_extracao": ModoExtracaoRegra.TOKEN_VALOR,
+            "condicoes": [RegraCondicao(ordem=1, padrao_regex=_PADRAO_INSCRICAO)],
         },
     ]
 
@@ -68,7 +76,19 @@ def _regras_padrao(escopo: EscopoRegraGrupo, tipo_inscricao: TipoDetalhamento) -
             "tipo_detalhamento_resultado": tipo_inscricao,
             "modo_extracao": ModoExtracaoRegra.TOKEN_VALOR,
             "condicoes": [
-                RegraCondicao(ordem=1, padrao_regex=r"pagamento\s+via\D*?(\d+(?:[.,]\d{2})?)"),
+                # Exige o "de" literal antes do valor (o \D*? antigo parava no
+                # primeiro dígito depois de "via", que podia ser o número de
+                # parcelas -- ex.: "via cartao de credito em 3 parcelas de R$
+                # 160,00" capturava "3" em vez de "160,00"). Usar ".*?" (que
+                # também pula dígitos) até um "de" respeita a semântica real
+                # da regra -- "o valor vem logo depois de um 'de'" -- e o
+                # "de" de "cartao de credito" é automaticamente descartado
+                # porque não é seguido de um valor, forçando a busca a
+                # continuar até o "de" que precede o valor de fato.
+                RegraCondicao(
+                    ordem=1,
+                    padrao_regex=r"pagamento\s+via.*?de\s*r?\$?\s*(\d+(?:[.,]\d{2})?)",
+                ),
             ],
         })
 
@@ -95,7 +115,13 @@ def _regras_padrao(escopo: EscopoRegraGrupo, tipo_inscricao: TipoDetalhamento) -
             "condicoes": [
                 RegraCondicao(
                     ordem=1,
-                    padrao_regex=r"(?:biscoitos?\D*?(\d+(?:[.,]\d{2})?)|(\d+(?:[.,]\d{2})?)\D*?biscoitos?)",
+                    # [^\d/] em vez de \D: sem isso, "R$ 80,00 / Biscoitos: R$ 20,00"
+                    # deixava o ramo "valor antes de biscoito" pular por cima da
+                    # barra e capturar o valor da inscrição (80,00) em vez do
+                    # valor que está de fato ao lado de "biscoito" (20,00) — a
+                    # barra e outro dígito não colidem, então continuam servindo
+                    # de fronteira entre campos distintos da observação.
+                    padrao_regex=r"(?:biscoitos?[^\d/]*?(\d+(?:[.,]\d{2})?)|(\d+(?:[.,]\d{2})?)[^\d/]*?biscoitos?)",
                 ),
                 RegraCondicao(ordem=2, padrao_regex=r"(?s)^(?:(?!pacotes?|pct\b).)*$"),
                 RegraCondicao(ordem=3, padrao_regex=r"pagamento\s+via\D*?\d+(?:[.,]\d{2})?"),
@@ -109,17 +135,25 @@ def _adicionar_regras_faltantes(db: Session, grupo: RegraGrupo, tipo_inscricao: 
     """Completa um RegraGrupo já existente com as regras padrão (por nome)
     que ele ainda não tem — permite entregar novas regras padrão (ex.:
     Biscoitos) sem precisar de uma migration de dados, já que o laço
-    principal de `seed_regras` só cria grupos do zero."""
-    nomes_existentes = {regra.nome for regra in grupo.regras}
-    adicionou = False
+    principal de `seed_regras` só cria grupos do zero. Também resincroniza a
+    `ordem` das regras padrão já existentes (por nome) com o valor atual de
+    `_regras_padrao` — necessário para correções de prioridade entre regras
+    (ex.: "lista compartilhada" precisar rodar antes da "Inscrição" genérica)
+    alcançarem ambientes que já tinham sido seedados com a ordem antiga."""
+    regras_existentes = {regra.nome: regra for regra in grupo.regras}
+    alterou = False
 
     for item in _regras_padrao(grupo.escopo, tipo_inscricao):
-        if item["nome"] in nomes_existentes:
+        existente = regras_existentes.get(item["nome"])
+        if existente is None:
+            grupo.regras.append(Regra(**item))
+            alterou = True
             continue
-        grupo.regras.append(Regra(**item))
-        adicionou = True
+        if existente.ordem != item["ordem"]:
+            existente.ordem = item["ordem"]
+            alterou = True
 
-    return adicionou
+    return alterou
 
 
 def seed_regras(db: Session):

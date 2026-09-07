@@ -1,6 +1,6 @@
-from typing import List, Optional
+from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.enums import EscopoRegraGrupo, ModoExtracaoRegra, TipoDetalhamento
 
@@ -23,12 +23,12 @@ class RegraBase(BaseModel):
     ativo: bool = True
     tipo_detalhamento_resultado: TipoDetalhamento
     modo_extracao: ModoExtracaoRegra = ModoExtracaoRegra.TOKEN_VALOR
-    condicoes: List[RegraCondicaoBase] = []
+    condicoes: list[RegraCondicaoBase] = []
 
 
 class RegraResponse(RegraBase):
     id: int
-    condicoes: List[RegraCondicaoResponse] = []
+    condicoes: list[RegraCondicaoResponse] = []
 
     class Config:
         from_attributes = True
@@ -37,11 +37,11 @@ class RegraResponse(RegraBase):
 class RegraGrupoResponse(BaseModel):
     id: int
     nome: str
-    descricao: Optional[str]
+    descricao: str | None
     escopo: EscopoRegraGrupo
     ordem: int
     ativo: bool
-    regras: List[RegraResponse] = []
+    regras: list[RegraResponse] = []
 
     class Config:
         from_attributes = True
@@ -49,19 +49,43 @@ class RegraGrupoResponse(BaseModel):
 
 class RegraGrupoCreate(BaseModel):
     nome: str
-    descricao: Optional[str] = None
+    descricao: str | None = None
     escopo: EscopoRegraGrupo
     ordem: int
     ativo: bool = True
-    regras: List[RegraBase] = []
+    regras: list[RegraBase] = []
 
 
 class RegraGrupoUpdate(BaseModel):
-    nome: Optional[str] = None
-    descricao: Optional[str] = None
-    escopo: Optional[EscopoRegraGrupo] = None
-    ordem: Optional[int] = None
-    ativo: Optional[bool] = None
+    nome: str | None = None
+    descricao: str | None = None
+    escopo: EscopoRegraGrupo | None = None
+    ordem: int | None = None
+    ativo: bool | None = None
     # Substitui a lista inteira de regras (e suas condições) quando informada —
     # editar um grupo na tela envia sempre a árvore completa de volta.
-    regras: Optional[List[RegraBase]] = None
+    regras: list[RegraBase] | None = None
+
+
+class TesteObservacaoRequest(BaseModel):
+    nome: str = Field(..., min_length=1)
+    observacao: str = Field(..., min_length=1)
+
+
+class TesteDetalhamentoResponse(BaseModel):
+    tipo: TipoDetalhamento
+    valor: Decimal
+    referencia_id: int | None = None
+
+
+class TesteRegraResponse(BaseModel):
+    nome: str
+    forma_pagamento: str
+    detalhamentos: list[TesteDetalhamentoResponse]
+
+
+class TesteObservacaoResponse(BaseModel):
+    modelo_extracao: str
+    total_gerado: Decimal
+    numero_parcelas: Decimal
+    regras: list[TesteRegraResponse]
