@@ -1,5 +1,5 @@
 import re
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Optional
 
 from app.integracao.regras.dtos import CandidatoLancamento, PendenciaAuditoria
@@ -46,6 +46,59 @@ def _parcelas_mencionadas(texto_normalizado: str) -> int:
     não menciona nada."""
     match = _RE_PARCELAS.search(texto_normalizado)
     return int(match.group(1)) if match else 1
+
+
+_RE_VALOR_NA_LISTA = re.compile(r"de\s+(\d+(?:[.,]\d{2})?)\s+reais?", re.IGNORECASE)
+
+
+def _parse_valor(bruto: str) -> Optional[Decimal]:
+    try:
+        return Decimal(bruto.replace(".", "").replace(",", "."))
+    except InvalidOperation:
+        return None
+
+
+def _soma_valores_na_lista(texto_normalizado: str) -> Optional[Decimal]:
+    """Some os valores no formato '<Nome> de <valor> reais' mencionados na
+    observação (o mesmo formato da lista compartilhada, ex.: 'Fulano de 100
+    reais e Beltrano de 100 reais' -> 200) -- usado como último critério de
+    desempate pra cartão, já que a descrição do extrato da maquininha nunca
+    tem nome de ninguém: reconcilia o total declarado na observação com o
+    valor cheio do lançamento, em vez de aceitar qualquer venda cujo valor
+    seja só maior ou igual ao pagamento desta pessoa (o que gruda pendências
+    de transações completamente diferentes na primeira venda de cartão do
+    dia que por acaso tenha valor suficiente). Devolve None quando a
+    observação não descreve uma lista (menos de 2 valores nesse formato) --
+    nesse caso o valor de referência continua sendo o `pagamento` da própria
+    pendência."""
+    valores_brutos = _RE_VALOR_NA_LISTA.findall(texto_normalizado)
+    if len(valores_brutos) < 2:
+        return None
+
+    total = Decimal(0)
+    for bruto in valores_brutos:
+        valor = _parse_valor(bruto)
+        if valor is None:
+            return None
+        total += valor
+    return total
+
+
+def _preferir_capacidade_suficiente(
+    candidatos: list[CandidatoLancamento], pagamento: Decimal
+) -> list[CandidatoLancamento]:
+    """Entre candidatos empatados (mesma forma/parcelas), prioriza os que
+    ainda têm capacidade restante suficiente pra cobrir o pagamento desta
+    pendência. Sem isso, o desempate por "menor id" pode grudar numa venda
+    de cartão (ou PIX) que já foi majoritariamente consumida por outra
+    pessoa só porque tem id menor, quando existe uma alternativa do mesmo
+    dia/forma/parcelas com espaço de sobra que na verdade é a certa. Se
+    nenhum candidato tiver espaço suficiente, devolve a lista original —
+    a Etapa B decide o resto, inclusive rejeitando por falta de capacidade."""
+    com_espaco = [
+        c for c in candidatos if (c.valor - c.soma_detalhamentos) >= pagamento - _TOLERANCIA
+    ]
+    return com_espaco or candidatos
 
 
 def selecionar_lancamento(
@@ -97,6 +150,20 @@ def selecionar_lancamento(
             if com_parcela_igual:
                 validos = com_parcela_igual
 
+        # Terceiro critério, só quando ainda sobra ambiguidade após data,
+        # valor, forma e parcelas: reconcilia o valor de referência (soma da
+        # lista de nomes na observação, ou o pagamento individual quando não
+        # é uma lista) com o valor cheio do candidato -- sem isso, qualquer
+        # venda de cartão do dia com valor suficiente "engole" pendências de
+        # transações completamente diferentes.
+        valor_referencia = _soma_valores_na_lista(texto_observacao) or pendencia.pagamento
+        validos = [
+            c for c in validos if abs(c.valor - valor_referencia) <= _TOLERANCIA
+        ]
+        if not validos:
+            return None
+
+        validos = _preferir_capacidade_suficiente(validos, pendencia.pagamento)
         return min(validos, key=lambda candidato: candidato.id)
 
     if not pendencia.nome_pagador:
@@ -115,4 +182,5 @@ def selecionar_lancamento(
     if not validos:
         return None
 
+    validos = _preferir_capacidade_suficiente(validos, pendencia.pagamento)
     return min(validos, key=lambda candidato: candidato.id)

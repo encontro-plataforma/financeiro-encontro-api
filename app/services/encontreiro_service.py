@@ -109,17 +109,15 @@ class EncontreiroService:
 
     @staticmethod
     def _linha_para_dados(db: Session, row, is_new: bool) -> dict:
-        if row.equipe_nome == None or row.equipe_nome == "N/A":
-            return {"observacao": "CANCELADO"}
-
+        # Equipe "N/A" (ou em branco) não é mais motivo para ignorar a linha:
+        # a ficha segue participando da inclusão/atualização normalmente,
+        # apenas sem equipe resolvida.
         equipe_id = None
         if row.equipe_nome:
             equipe = EquipeRepository.get_by_nome(db, row.equipe_nome)
             if not equipe:
                 raise ValueError(f"equipe '{row.equipe_nome}' não encontrada")
             equipe_id = equipe.id
-        elif is_new:
-            raise ValueError("equipe não informada")
 
         situacao_default = SituacaoCamisa.SEM_BLUSA if is_new else None
 
@@ -197,9 +195,6 @@ class EncontreiroService:
                     dados = EncontreiroService._linha_para_dados(
                         db, row, is_new=existente is None
                     )
-                    if dados["observacao"] == "CANCELADO":
-                        continue  # DADO CANCELADO, IGNORAR LINHA
-
                 except ValueError as exc:
                     raise ValueError(f"Linha {row.linha}: {exc}") from exc
 

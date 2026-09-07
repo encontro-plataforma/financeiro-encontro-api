@@ -174,6 +174,79 @@ def test_credito_sozinho_sem_a_palavra_cartao_e_tratado_como_cartao_credito():
     assert selecionar_lancamento(pendencia, [pix, credito]) is credito
 
 
+def test_desempate_prefere_candidato_com_capacidade_suficiente():
+    # Cenário real: duas vendas de cartão no mesmo dia, mesma forma e mesmas
+    # parcelas -- uma já parcialmente consumida por outra pessoa (não sobra
+    # capacidade pra esta pendência) e outra intocada com o valor exato. O
+    # desempate por "menor id" não pode grudar na primeira só por ter id
+    # menor quando ela não tem espaço pra cobrir o pagamento.
+    pendencia = _pendencia(observacao="Pagamento via cartao de credito em 3 parcelas de R$ 180,00", pagamento="180")
+    ja_consumido = _candidato(
+        1, "VENDA CARTAO", "20", forma_pagamento=FormaPagamento.CARTAO_CREDITO, valor="200"
+    )
+    com_espaco = _candidato(
+        2, "VENDA CARTAO", "180", forma_pagamento=FormaPagamento.CARTAO_CREDITO, valor="180"
+    )
+
+    escolhido = selecionar_lancamento(pendencia, [ja_consumido, com_espaco])
+
+    assert escolhido is com_espaco
+
+
+def test_desempate_capacidade_suficiente_nao_afeta_quando_ambos_cabem():
+    # Quando os dois candidatos empatados ainda têm espaço de sobra, o
+    # desempate continua sendo por menor id -- não é uma corrida por quem
+    # tem mais capacidade.
+    pendencia = _pendencia()
+    mais_novo = _candidato(7, "PIX JOAO DA SILVA", "100")
+    mais_antigo = _candidato(3, "pix joao da silva", "150")
+
+    escolhido = selecionar_lancamento(pendencia, [mais_novo, mais_antigo])
+
+    assert escolhido is mais_antigo
+
+
+def test_cartao_nao_engole_lista_de_valor_diferente():
+    # Cenário real: duas listas compartilhadas completamente diferentes no
+    # mesmo dia via cartão -- uma soma 180 (Fulano+Beltrana de 90 cada),
+    # outra é uma venda avulsa de 300. A pendência do grupo de 180 não pode
+    # grudar na venda de 300 só porque "valor >= pagamento individual" e tem
+    # id menor -- o total declarado na observação tem que bater com o valor
+    # cheio do candidato.
+    pendencia = _pendencia(
+        pagamento="90",
+        observacao="Pagamento via cartao de credito para Fulano de 90 reais e Beltrana de 90 reais",
+    )
+    venda_errada = _candidato(1, "VENDA CARTAO", "300", forma_pagamento=FormaPagamento.CARTAO_CREDITO)
+    venda_certa = _candidato(2, "VENDA CARTAO", "180", forma_pagamento=FormaPagamento.CARTAO_CREDITO)
+
+    escolhido = selecionar_lancamento(pendencia, [venda_errada, venda_certa])
+
+    assert escolhido is venda_certa
+
+
+def test_cartao_solo_nao_casa_com_venda_de_valor_maior():
+    # Pagamento avulso (sem lista): o valor de referência é o próprio
+    # pagamento da pendência -- uma venda de cartão de valor bem maior no
+    # mesmo dia não deve "absorver" essa pendência só por ter capacidade.
+    pendencia = _pendencia(
+        pagamento="90", observacao="Pagamento feito via cartao de credito de R$ 90,00"
+    )
+    venda_grande = _candidato(1, "VENDA CARTAO", "300", forma_pagamento=FormaPagamento.CARTAO_CREDITO)
+
+    assert selecionar_lancamento(pendencia, [venda_grande]) is None
+
+
+def test_cartao_lista_sem_candidato_com_total_exato_nao_casa():
+    pendencia = _pendencia(
+        pagamento="90",
+        observacao="Pagamento via cartao de credito para Fulano de 90 reais e Beltrana de 90 reais",
+    )
+    unico_candidato = _candidato(1, "VENDA CARTAO", "300", forma_pagamento=FormaPagamento.CARTAO_CREDITO)
+
+    assert selecionar_lancamento(pendencia, [unico_candidato]) is None
+
+
 def test_debito_sozinho_sem_acento_e_tratado_como_cartao_debito():
     pendencia = _pendencia(observacao="Pagamento via debito de R$ 100,00")
     debito = _candidato(1, "JOAO DA SILVA", "100", FormaPagamento.CARTAO_DEBITO)

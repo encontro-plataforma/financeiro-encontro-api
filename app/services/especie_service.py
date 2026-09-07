@@ -107,7 +107,7 @@ class EspecieService:
             if not linha.nome:
                 raise ValueError("coluna 'nome' é obrigatória para linhas de inscrição (ENCONTREIRO/ENCONTRISTA)")
 
-            descricao_lancamento = f"Espécie - {linha.nome}"
+            descricao_lancamento = linha.nome
             observacao_lancamento = linha.observacao or ""
             hash_value = gerar_hash(descricao_lancamento, linha.valor, linha.data, observacao_lancamento)
 

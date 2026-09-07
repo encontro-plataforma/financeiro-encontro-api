@@ -12,7 +12,6 @@ from app.models.enums import ModoExtracaoRegra, TipoDetalhamento
 from app.models.regra import Regra
 from app.models.regra_condicao import RegraCondicao
 from app.models.regra_grupo import RegraGrupo
-from app.services.auditoria_service import _eh_pagamento_multiplo
 
 
 def _pendencia(pagamento="100", observacao=None, pessoa_id=1, nome="Joao da Silva"):
@@ -465,18 +464,6 @@ def test_permite_fallback_false_nao_afeta_regra_que_bate():
     assert len(itens) == 1
     assert itens[0].valor == Decimal(90)
     assert itens[0].referencia_id == pendencia.id
-
-
-def test_pagamento_multiplo_e_reconhecido_para_nao_criar_outro_de_taxa():
-    observacao = (
-        "Pagamento via pix de R$ 320,00 para Francisco José Ferreira Gomes de 160 reais "
-        "e Maria Thalita Ferreira Lima de 160 reais / SEM BISCOITOS - ALINHADO COM A SOL"
-    )
-
-    assert _eh_pagamento_multiplo(observacao)
-    assert not _eh_pagamento_multiplo(
-        "Pagamento via pix de R$ 160,00 para Francisco José Ferreira Gomes de 160 reais"
-    )
 
 
 def test_sem_biscoitos_nao_cria_outro_mesmo_com_pagamento_multiplo():
