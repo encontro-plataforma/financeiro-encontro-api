@@ -5,19 +5,21 @@
             "name": "FastAPI: Debug backend",
             "type": "debugpy",
             "request": "launch",
-            "python": "${workspaceFolder}/venv/bin/python",
+            "python": "${workspaceFolder}/.venv/bin/python",
             "cwd": "${workspaceFolder}",
             "envFile": "${workspaceFolder}/.env",
             "env": {
                 "PYTHONNOUSERSITE": "1"
             },
-            "module": "uvicorn",
+            "module": "fastapi_cli",
             "args": [
-                "app.main:app",
+                "dev",
+                "app/main.py",
                 "--host",
                 "0.0.0.0",
                 "--port",
-                "8000"
+                "8000",
+                "--no-reload"
             ],
             "console": "integratedTerminal",
             "justMyCode": true,

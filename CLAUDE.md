@@ -143,7 +143,7 @@ All share the same filter DTO: `data_inicio`, `data_fim` (defaults: today → to
 
 - **All env vars**: `app/core/config.py` — single source of truth, plain `os.getenv` module-level constants (no pydantic Settings class)
 - **Local dev env**: `.env` (gitignored) — copy from `.env.example`
-- **Python deps**: `requirements.txt`
+- **Python deps**: `pyproject.toml` / `uv.lock` — managed with `uv` (`uv sync` installs everything into `.venv`)
 - **DB schema**: managed via Alembic migrations (`alembic/versions/`, 16+ revisions) — auto-applied on startup by the lifespan handler, also run explicitly on Render deploy
 - **Seed data**: `app/database/seeds/` — runs on startup, idempotent
 - **Deploy**: `render.yaml` (Render Blueprint — web service, runs `alembic upgrade head` on build)

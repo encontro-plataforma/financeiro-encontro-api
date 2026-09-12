@@ -292,18 +292,24 @@ def _processar_pendentes(
             to_decimal(lancamento.valor) - _TOLERANCIA
         )
 
-        # Lançamento veio do extrato de cartão: a extração sempre usa o
-        # pagamento bruto da pendência (mesmo valor já usado na Etapa A) --
-        # é a `_aplicar_taxa_cartao`, abaixo, o único lugar que desconta a
-        # taxa da maquininha. Trocar aqui pelo valor líquido faria a taxa ser
-        # descontada duas vezes (uma pela troca, outra por `_aplicar_taxa_cartao`).
+        # Lançamento veio do extrato de cartão: a igreja só fica com o valor
+        # líquido (o resto é taxa da maquininha), então a extração usa o
+        # líquido no lugar do bruto. A Etapa A (match), acima, já rodou com o
+        # pagamento original (bruto), que é o que bate com o valor do lançamento.
         eh_cartao = lancamento.cart_taxa is not None
+        pendencia_para_extracao = (
+            replace(
+                pendencia_auditoria, pagamento=to_decimal(lancamento.cart_valor_liquido)
+            )
+            if eh_cartao
+            else pendencia_auditoria
+        )
 
         grupoRegras = RegraRepository.list_ativos_por_escopos(
             db, [_ESCOPO_POR_TIPO[tipo_detalhamento]]
         )
         itens_com_origem = extrair_detalhamentos_com_origem(
-            pendencia_auditoria, grupoRegras, tipo_detalhamento, permite_fallback
+            pendencia_para_extracao, grupoRegras, tipo_detalhamento, permite_fallback
         )
 
         if not itens_com_origem:
@@ -498,9 +504,14 @@ def _simular_auditoria(db: Session, lancamento_id: int) -> dict:
         permite_fallback = capacidade_restante >= (to_decimal(lancamento.valor) - _TOLERANCIA)
 
         eh_cartao = lancamento.cart_taxa is not None
+        pendencia_para_extracao = (
+            replace(pendencia_auditoria, pagamento=to_decimal(lancamento.cart_valor_liquido))
+            if eh_cartao
+            else pendencia_auditoria
+        )
 
         itens_com_origem = extrair_detalhamentos_com_origem(
-            pendencia_auditoria,
+            pendencia_para_extracao,
             grupos_por_tipo[tipo_detalhamento],
             tipo_detalhamento,
             permite_fallback,

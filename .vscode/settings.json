@@ -6,6 +6,8 @@
             "packageManager": "ms-python.python:pip"
         }
     ],
+    "python-envs.alwaysUseUv": true,
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
     "[python]": {
         "editor.defaultFormatter": "charliermarsh.ruff",
         "editor.formatOnSave": true,
@@ -14,5 +16,12 @@
             "source.organizeImports.ruff": "explicit"
         }
     },
-    "ruff.path": ["${workspaceFolder}/venv/bin/ruff"]
+    "ruff.path": [
+        "${workspaceFolder}/.venv/bin/ruff"
+    ],
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }

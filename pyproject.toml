@@ -1,0 +1,30 @@
+[project]
+name = "financeiro-encontro-api"
+version = "0.5.0"
+description = "Backend da plataforma Financeiro Encontro"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "fastapi==0.135.1",
+    "uvicorn==0.41.0",
+    "sqlalchemy==2.0.48",
+    "alembic==1.18.4",
+    "psycopg2-binary==2.9.11",
+    "pydantic==2.12.5",
+    "email-validator==2.2.0",
+    "python-jose[cryptography]==3.3.0",
+    "bcrypt==4.0.1",
+    "python-dotenv==1.2.2",
+    "python-multipart==0.0.22",
+    "reportlab==4.2.5",
+    "pandas==3.0.1",
+    "pytest==8.3.3",
+]
+
+[dependency-groups]
+dev = [
+    "fastapi-cli>=0.0.32",
+    "ruff==0.14.4",
+]
+
+[tool.uv]
+package = false
