@@ -1,7 +1,6 @@
 import csv
 import io
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 from app.utils.parse_utils import normalizar_cabecalho
 
@@ -35,29 +34,30 @@ _CABECALHO_PARA_CAMPO = {
 class EncontreiroCsvRow:
     linha: int
     id: int
-    dt_inscricao: Optional[str] = None
-    nome: Optional[str] = None
-    apelido: Optional[str] = None
-    instagram: Optional[str] = None
-    telefone: Optional[str] = None
-    estado_civil: Optional[str] = None
-    igreja: Optional[str] = None
-    religiao: Optional[str] = None
-    contato_emerg: Optional[str] = None
-    nome_emerg: Optional[str] = None
-    parentesco_emerg: Optional[str] = None
-    alergia_comorbidade: Optional[str] = None
-    equipe_nome: Optional[str] = None
-    camisa: Optional[str] = None
-    situacao_camisa: Optional[str] = None
-    veiculo: Optional[str] = None
-    dt_pagamento: Optional[str] = None
-    nome_pagador: Optional[str] = None
-    pagamento: Optional[str] = None
-    observacao: Optional[str] = None
-    montagem: Optional[str] = None
+    dt_inscricao: str | None = None
+    nome: str | None = None
+    apelido: str | None = None
+    instagram: str | None = None
+    telefone: str | None = None
+    estado_civil: str | None = None
+    igreja: str | None = None
+    religiao: str | None = None
+    contato_emerg: str | None = None
+    nome_emerg: str | None = None
+    parentesco_emerg: str | None = None
+    alergia_comorbidade: str | None = None
+    equipe_nome: str | None = None
+    camisa: str | None = None
+    situacao_camisa: str | None = None
+    veiculo: str | None = None
+    dt_pagamento: str | None = None
+    nome_pagador: str | None = None
+    pagamento: str | None = None
+    observacao: str | None = None
+    montagem: str | None = None
 
-def _mapear_cabecalho(row: List[str]) -> Dict[int, str]:
+
+def _mapear_cabecalho(row: list[str]) -> dict[int, str]:
     indice_para_campo = {}
     for idx, celula in enumerate(row):
         campo = _CABECALHO_PARA_CAMPO.get(normalizar_cabecalho(celula))
@@ -66,8 +66,27 @@ def _mapear_cabecalho(row: List[str]) -> Dict[int, str]:
     return indice_para_campo
 
 
-def parse(conteudo: str) -> List[EncontreiroCsvRow]:
-    linhas: List[EncontreiroCsvRow] = []
+def _extrair_dados_linha(
+    row: list[str], indice_para_campo: dict[int, str], linha_num: int
+) -> dict:
+    dados: dict[str, object] = {"linha": linha_num}
+    for idx, campo in indice_para_campo.items():
+        valor = row[idx].strip() if idx < len(row) else ""
+        dados[campo] = valor or None
+
+    id_bruto = dados.pop("id", None)
+    if not id_bruto:
+        raise ValueError(f"Linha {linha_num}: coluna ID vazia")
+    try:
+        dados["id"] = id_bruto
+    except ValueError as exc:
+        raise ValueError(f"Linha {linha_num}: ID inválido '{id_bruto}'") from exc
+
+    return dados
+
+
+def parse(conteudo: str) -> list[EncontreiroCsvRow]:
+    linhas: list[EncontreiroCsvRow] = []
 
     with io.StringIO(conteudo) as arquivo:
         reader = csv.reader(arquivo, delimiter=",")
@@ -82,25 +101,15 @@ def parse(conteudo: str) -> List[EncontreiroCsvRow]:
                 if row and normalizar_cabecalho(row[0]) == "ID":
                     indice_para_campo = _mapear_cabecalho(row)
                     if "nome" not in indice_para_campo.values():
-                        raise ValueError("Cabeçalho do CSV de encontreiros não reconhecido")
+                        raise ValueError(
+                            "Cabeçalho do CSV de encontreiros não reconhecido"
+                        )
                 continue
 
             if not row or not any(c.strip() for c in row):
                 continue
 
-            dados = {"linha": linha_num}
-            for idx, campo in indice_para_campo.items():
-                valor = row[idx].strip() if idx < len(row) else ""
-                dados[campo] = valor or None
-
-            id_bruto = dados.pop("id", None)
-            if not id_bruto:
-                raise ValueError(f"Linha {linha_num}: coluna ID vazia")
-            try:
-                dados["id"] = int(id_bruto)
-            except ValueError as exc:
-                raise ValueError(f"Linha {linha_num}: ID inválido '{id_bruto}'") from exc
-
+            dados = _extrair_dados_linha(row, indice_para_campo, linha_num)
             linhas.append(EncontreiroCsvRow(**dados))
 
         if indice_para_campo is None:
