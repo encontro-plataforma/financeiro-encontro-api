@@ -8,6 +8,7 @@
 
 # Environment
 /venv
+.venv
 .env
 .env.*
 !.env.example

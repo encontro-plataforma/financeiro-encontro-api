@@ -14,17 +14,8 @@ fi
 
 APP_PORT=${APP_PORT:-8000}
 
-# cria venv se não existir
-if [ ! -d "venv" ]; then
-  echo "Criando ambiente virtual..."
-  uv venv --python 3.11 venv
-fi
-
-echo "### Ativando ambiente virtual..."
-source venv/bin/activate
-
-echo "### Instalando dependências..."
-uv pip install -r requirements.txt
+echo "### Sincronizando dependências com uv..."
+uv sync
 
 echo "### Subindo servidor FastAPI na porta $APP_PORT..."
-uvicorn app.main:app --reload --host 0.0.0.0 --port "$APP_PORT"
+uv run fastapi dev app/main.py --host 0.0.0.0 --port "$APP_PORT"

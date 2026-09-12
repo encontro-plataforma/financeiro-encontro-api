@@ -26,6 +26,7 @@ Este serviço fornece uma API REST para controle de:
 - PostgreSQL 15
 - Pandas (processamento de CSV)
 - Docker
+- [uv](https://docs.astral.sh/uv/) (gerenciador de pacotes e ambiente virtual)
 
 ---
 
@@ -85,11 +86,31 @@ docker compose -f ../infra-encontro/docker-compose-db.yml up -d
 
 O script faz automaticamente:
 
-- Cria o venv (se não existir)
-- Ativa o ambiente virtual
-- Instala dependências
 - Carrega o `.env` se existir na pasta `backend/`
-- Inicia o servidor FastAPI na porta definida por `APP_PORT` (padrão: 8000)
+- Sincroniza as dependências com `uv sync` (cria/atualiza o `.venv` a partir do `pyproject.toml`/`uv.lock`)
+- Inicia o servidor FastAPI (`uv run fastapi dev`, com reload automático) na porta definida por `APP_PORT` (padrão: 8000)
+
+### Rodando sem o script
+
+As dependências são gerenciadas via [uv](https://docs.astral.sh/uv/) (`pyproject.toml` + `uv.lock`), não mais `requirements.txt`. Os comandos equivalentes ao script, na mão:
+
+```bash
+uv sync                        # cria o .venv e instala as dependências (main + dev)
+uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
+```
+
+> `fastapi dev` (do pacote `fastapi-cli`, dependência de dev) é o CLI oficial do FastAPI para desenvolvimento local — já vem com reload automático. Em produção (Docker/Render) continua-se usando `uvicorn` diretamente, sem o `fastapi-cli`.
+
+`uv run <comando>` executa qualquer comando já dentro do `.venv` do projeto, sem precisar ativar (`source .venv/bin/activate`) — mas ativar continua funcionando normalmente se preferir.
+
+Para adicionar uma nova dependência:
+
+```bash
+uv add nome-do-pacote           # dependência de produção
+uv add --group dev nome-do-pacote  # dependência só de desenvolvimento (ex: ruff)
+```
+
+Isso atualiza `pyproject.toml` e `uv.lock` automaticamente — ambos devem ser commitados.
 
 ---
 
@@ -439,25 +460,25 @@ Cada lançamento gera um hash SHA-256 a partir de `descricao_normalizada + valor
 
 ## Migrations (Alembic)
 
-Os comandos abaixo devem ser executados dentro da pasta `backend/` com o venv ativo.
+Os comandos abaixo devem ser executados dentro da pasta `backend/`, prefixados com `uv run` (não é necessário ativar o `.venv` manualmente).
 
 > A URL do banco é lida automaticamente da variável `DATABASE_URL` (via `alembic/env.py`). O `alembic.ini` não precisa ser editado.
 >
 > Ao rodar `alembic` diretamente no terminal (fora do `start-backend.sh`), carregue o `.env` antes:
 > ```bash
-> export $(grep -v '^#' .env | xargs) && alembic upgrade head
+> export $(grep -v '^#' .env | xargs) && uv run alembic upgrade head
 > ```
 
 ### Aplicar todas as migrations pendentes
 
 ```bash
-alembic upgrade head
+uv run alembic upgrade head
 ```
 
 ### Gerar nova migration a partir das mudanças nos models
 
 ```bash
-alembic revision --autogenerate -m "descricao da mudanca"
+uv run alembic revision --autogenerate -m "descricao da mudanca"
 ```
 
 > Sempre revise o arquivo gerado em `alembic/versions/` antes de aplicar — o autogenerate não detecta tudo (ex: renomeações de coluna).
@@ -465,19 +486,19 @@ alembic revision --autogenerate -m "descricao da mudanca"
 ### Reverter a última migration
 
 ```bash
-alembic downgrade -1
+uv run alembic downgrade -1
 ```
 
 ### Ver histórico de migrations
 
 ```bash
-alembic history
+uv run alembic history
 ```
 
 ### Ver qual migration está aplicada no banco
 
 ```bash
-alembic current
+uv run alembic current
 ```
 
 ---

@@ -97,21 +97,21 @@ app.add_middleware(
 app.include_router(auth_router)
 
 # rotas protegidas
-_protected = {"dependencies": [Depends(get_current_user)]}
-app.include_router(lancamento_router, **_protected)
-app.include_router(finalidade_router, **_protected)
-app.include_router(upload_file_router, **_protected)
-app.include_router(conciliacao_router, **_protected)
-app.include_router(dashboard_router, **_protected)
-app.include_router(relatorio_router, **_protected)
-app.include_router(relatorio_secretaria_router, **_protected)
-app.include_router(usuario_router, **_protected)
-app.include_router(equipe_router, **_protected)
-app.include_router(circulo_router, **_protected)
-app.include_router(encontreiro_router, **_protected)
-app.include_router(encontrista_router, **_protected)
-app.include_router(detalhamento_router, **_protected)
-app.include_router(regra_router, **_protected)
+_protected_dependencies = [Depends(get_current_user)]
+app.include_router(lancamento_router, dependencies=_protected_dependencies)
+app.include_router(finalidade_router, dependencies=_protected_dependencies)
+app.include_router(upload_file_router, dependencies=_protected_dependencies)
+app.include_router(conciliacao_router, dependencies=_protected_dependencies)
+app.include_router(dashboard_router, dependencies=_protected_dependencies)
+app.include_router(relatorio_router, dependencies=_protected_dependencies)
+app.include_router(relatorio_secretaria_router, dependencies=_protected_dependencies)
+app.include_router(usuario_router, dependencies=_protected_dependencies)
+app.include_router(equipe_router, dependencies=_protected_dependencies)
+app.include_router(circulo_router, dependencies=_protected_dependencies)
+app.include_router(encontreiro_router, dependencies=_protected_dependencies)
+app.include_router(encontrista_router, dependencies=_protected_dependencies)
+app.include_router(detalhamento_router, dependencies=_protected_dependencies)
+app.include_router(regra_router, dependencies=_protected_dependencies)
 
 
 @app.get("/health")
