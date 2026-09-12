@@ -237,7 +237,7 @@ wheels = [
 
 [[package]]
 name = "financeiro-encontro-api"
-version = "0.5.0"
+version = "0.5.1"
 source = { virtual = "." }
 dependencies = [
     { name = "alembic" },
