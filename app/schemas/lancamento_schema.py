@@ -54,6 +54,8 @@ class LancamentoResumo(BaseModel):
     data_pagamento: datetime
     status: StatusLancamento
     forma_pagamento: FormaPagamento
+    cart_parcelas: int | None = None
+    observacao: str | None = None
 
     class Config:
         from_attributes = True

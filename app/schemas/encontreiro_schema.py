@@ -5,7 +5,6 @@ from pydantic import BaseModel
 
 from app.models.enums import SituacaoCamisa
 from app.schemas.equipe_schema import EquipeResponse
-from app.schemas.lancamento_schema import LancamentoResumo
 
 
 class EncontreiroResponse(BaseModel):
@@ -33,9 +32,8 @@ class EncontreiroResponse(BaseModel):
     observacao: str | None
     criado_em: datetime
     auditado: bool
-    detalhamento_id: int | None = None
-    lancamento_vinculado_id: int | None = None
-    lancamento_vinculado: LancamentoResumo | None = None
+    is_pagamento_multiplo: bool = False
+    quantidade_lancamentos_vinculados: int = 0
 
     class Config:
         from_attributes = True

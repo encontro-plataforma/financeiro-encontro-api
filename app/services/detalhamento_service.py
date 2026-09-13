@@ -111,6 +111,41 @@ class DetalhamentoService:
             )
 
     @staticmethod
+    def _validar_soma_pessoa(
+        db: Session, tipo, referencia_id: int | None, novo_valor, excluir_id: int = None
+    ):
+        """Simétrico a `_validar_soma`, mas do lado da pessoa: a soma dos
+        Detalhamento de uma mesma inscrição (mesmo tipo + referencia_id) nunca
+        pode ultrapassar o `pagamento` cadastrado -- é isso que permite ligar
+        vários lançamentos a uma mesma inscrição com segurança."""
+        if tipo not in _TIPOS_INSCRICAO or referencia_id is None:
+            return
+
+        repo = (
+            EncontreiroRepository
+            if tipo == TipoDetalhamento.INSCRICAO_ENCONTREIRO
+            else EncontristaRepository
+        )
+        pessoa = repo.get_by_id(db, referencia_id)
+        if not pessoa or pessoa.pagamento is None:
+            return
+
+        existentes = (
+            db.query(Detalhamento)
+            .filter(Detalhamento.tipo == tipo, Detalhamento.referencia_id == referencia_id)
+            .all()
+        )
+        soma_outros = sum((d.valor for d in existentes if d.id != excluir_id), Decimal("0"))
+        resto = to_decimal(pessoa.pagamento) - soma_outros
+        valor_decimal = to_decimal(novo_valor)
+
+        if valor_decimal > resto + _TOLERANCIA:
+            raise BadRequestException(
+                f"Não é possível vincular R$ {valor_decimal:.2f}: esta inscrição já tem "
+                f"R$ {soma_outros:.2f} vinculados de um total de R$ {to_decimal(pessoa.pagamento):.2f}."
+            )
+
+    @staticmethod
     def _sincronizar_status_lancamento(db: Session, lancamento_id: int):
         """Concilia automaticamente o lançamento quando a soma dos detalhamentos
         atinge (ou ultrapassa, dentro da tolerância) o valor total."""
@@ -161,6 +196,9 @@ class DetalhamentoService:
     def create(db: Session, data: dict):
         DetalhamentoService._validar_vinculo_permitido(db, data["lancamento_id"])
         DetalhamentoService._validar_soma(db, data["lancamento_id"], data["valor"])
+        DetalhamentoService._validar_soma_pessoa(
+            db, data["tipo"], data.get("referencia_id"), data["valor"]
+        )
         obj = DetalhamentoRepository.create(db, data)
         DetalhamentoService._sincronizar_status_lancamento(db, data["lancamento_id"])
         DetalhamentoService._aplicar_finalidade_inscricao(db, data["lancamento_id"], obj.tipo)
@@ -181,6 +219,13 @@ class DetalhamentoService:
 
         novo_valor = data.get("valor", obj.valor)
         DetalhamentoService._validar_soma(db, lancamento_id_novo, novo_valor, excluir_id=detalhamento_id)
+        DetalhamentoService._validar_soma_pessoa(
+            db,
+            data.get("tipo", obj.tipo),
+            data.get("referencia_id", obj.referencia_id),
+            novo_valor,
+            excluir_id=detalhamento_id,
+        )
 
         obj = DetalhamentoRepository.update(db, obj, data)
 

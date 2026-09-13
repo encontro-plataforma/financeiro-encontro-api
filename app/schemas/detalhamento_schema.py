@@ -4,6 +4,7 @@ from decimal import Decimal
 from pydantic import BaseModel, Field
 
 from app.models.enums import TipoDetalhamento
+from app.schemas.lancamento_schema import LancamentoResumo
 
 
 class DetalhamentoResponse(BaseModel):
@@ -19,6 +20,7 @@ class DetalhamentoResponse(BaseModel):
     # oferta/outro, é o próprio `descricao`.
     detalhe_nome: str = ""
     observacao_efetiva: str = ""
+    lancamento: LancamentoResumo | None = None
     criado_em: datetime
 
     class Config:

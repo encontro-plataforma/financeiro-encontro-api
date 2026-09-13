@@ -7,6 +7,7 @@ SORT_FIELDS = {
     "valor": Lancamento.valor,
     "data_pagamento": Lancamento.data_pagamento,
     "criado_em": Lancamento.criado_em,
+    "descricao": Lancamento.descricao,
 }
 
 DEFAULT_SORT = "data_pagamento:desc"

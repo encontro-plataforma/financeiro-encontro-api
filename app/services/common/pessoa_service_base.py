@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.database.session import SessionLocal
-from app.models.detalhamento import Detalhamento
 from app.models.enums import StatusProcessamento
 from app.models.upload_file import UploadFile
 from app.services.auditoria_service import AuditoriaService
@@ -54,17 +53,6 @@ class PessoaImportavelServiceBase(ABC):
         obj = cls.CONFIG.repository.get_by_id(db, pessoa_id)
         if not obj:
             raise NotFoundException(cls.CONFIG.modelo.__name__)
-
-        detalhamento = (
-            db.query(Detalhamento)
-            .filter(
-                Detalhamento.tipo == cls.CONFIG.tipo_detalhamento,
-                Detalhamento.referencia_id == obj.id,
-            )
-            .first()
-        )
-        obj.detalhamento_id = detalhamento.id if detalhamento else None
-        obj.lancamento_vinculado = detalhamento.lancamento if detalhamento else None
 
         return obj
 
