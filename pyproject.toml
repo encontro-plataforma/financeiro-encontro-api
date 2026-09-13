@@ -1,6 +1,6 @@
 [project]
 name = "financeiro-encontro-api"
-version = "0.5.0"
+version = "0.5.1"
 description = "Backend da plataforma Financeiro Encontro"
 requires-python = ">=3.11,<3.12"
 dependencies = [

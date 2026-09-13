@@ -88,6 +88,20 @@ def _to_int(valor: str | None, linha: int, campo: str) -> int:
         raise ValueError(f"Linha {linha}: {campo} inválido '{valor}'") from exc
 
 
+def _extrair_dados_linha(row: list[str], linha_num: int) -> dict:
+    dados: dict[str, str | None] = {}
+    for idx, campo in _CAMPOS_POR_INDICE.items():
+        valor = row[idx].strip()
+        dados[campo] = valor or None
+
+    return {
+        **dados,
+        "linha": linha_num,
+        "id": _to_int(dados.get("id"), linha_num, "ID"),
+        "padrinho_id": _to_int(dados.get("padrinho_id"), linha_num, "ID do padrinho"),
+    }
+
+
 def parse(conteudo: str) -> list[EncontristaCsvRow]:
     linhas: list[EncontristaCsvRow] = []
 
@@ -122,16 +136,7 @@ def parse(conteudo: str) -> list[EncontristaCsvRow]:
                     f"Linha {linha_num}: esperado {_NUM_COLUNAS} colunas, encontrado {len(row)}"
                 )
 
-            dados = {"linha": linha_num}
-            for idx, campo in _CAMPOS_POR_INDICE.items():
-                valor = row[idx].strip()
-                dados[campo] = valor or None
-
-            dados["id"] = _to_int(dados.get("id"), linha_num, "ID")
-            dados["padrinho_id"] = _to_int(
-                dados.get("padrinho_id"), linha_num, "ID do padrinho"
-            )
-
+            dados = _extrair_dados_linha(row, linha_num)
             linhas.append(EncontristaCsvRow(**dados))
 
         if not cabecalho_encontrado:
