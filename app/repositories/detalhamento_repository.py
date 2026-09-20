@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.detalhamento import Detalhamento
 from app.utils.sort_utils import apply_sort
@@ -32,14 +32,14 @@ class DetalhamentoRepository:
 
     @staticmethod
     def list_all(db: Session, params):
-        query = db.query(Detalhamento)
+        query = db.query(Detalhamento).options(joinedload(Detalhamento.lancamento))
         query = _apply_filters(query, params)
         query = apply_sort(query, Detalhamento, params.sort, SORT_FIELDS, DEFAULT_SORT)
         return query.all()
 
     @staticmethod
     def list_with_count(db: Session, params):
-        query = db.query(Detalhamento)
+        query = db.query(Detalhamento).options(joinedload(Detalhamento.lancamento))
         query = _apply_filters(query, params)
         query = apply_sort(query, Detalhamento, params.sort, SORT_FIELDS, DEFAULT_SORT)
         total = query.count()
