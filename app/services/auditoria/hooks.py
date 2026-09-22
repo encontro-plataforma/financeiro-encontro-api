@@ -43,63 +43,6 @@ def _verificar_capacidade(capacidade: Decimal, itens: list[ItemDetalhamento]) ->
     return None
 
 
-_DESCRICAO_TAXA_CARTAO = "Taxa do Cartão"
-
-
-def _lancamento_ja_tem_taxa_cartao(db: Session, lancamento_id: int) -> bool:
-    return (
-        db.query(Detalhamento)
-        .filter(
-            Detalhamento.lancamento_id == lancamento_id,
-            Detalhamento.tipo == TipoDetalhamento.OUTRO,
-            Detalhamento.descricao == _DESCRICAO_TAXA_CARTAO,
-        )
-        .first()
-        is not None
-    )
-
-
-def _aplicar_taxa_cartao(
-    itens_com_origem: list[tuple[ItemDetalhamento, object]],
-    taxa: Decimal,
-    ja_tem_taxa: bool,
-    origem_taxa: object = None,
-) -> list[tuple[ItemDetalhamento, object]]:
-    """Ajusta os itens extraídos pra refletir a taxa da maquininha de um
-    lançamento de cartão. No PRIMEIRO Detalhamento vinculado a este
-    lançamento, desconta a taxa do item de Inscrição e acrescenta um item
-    'Taxa do Cartão' -- a igreja só fica com o valor líquido, o resto é taxa
-    da maquininha, então a soma final continua batendo com o valor bruto do
-    lançamento. Nos PRÓXIMOS Detalhamentos do MESMO lançamento (pagamento
-    compartilhado por várias pessoas), a taxa já foi contabilizada no
-    primeiro match -- os itens seguintes usam o valor cheio, sem descontar
-    nem repetir a taxa."""
-    if ja_tem_taxa:
-        return itens_com_origem
-
-    ajustados = list(itens_com_origem)
-    indice_inscricao = next(
-        (i for i, (item, _) in enumerate(ajustados) if item.tipo in _LABEL_TIPO_PESSOA),
-        0 if ajustados else None,
-    )
-    if indice_inscricao is not None:
-        item, origem = ajustados[indice_inscricao]
-        ajustados[indice_inscricao] = (replace(item, valor=item.valor - taxa), origem)
-
-    ajustados.append(
-        (
-            ItemDetalhamento(
-                tipo=TipoDetalhamento.OUTRO,
-                valor=taxa,
-                referencia_id=None,
-                descricao=_DESCRICAO_TAXA_CARTAO,
-            ),
-            origem_taxa,
-        )
-    )
-    return ajustados
-
-
 _NOME_REGRA_BISCOITOS = "Biscoitos"
 _PREFIXO_DESCRICAO_BISCOITOS = "Biscoitos da ficha "
 
@@ -129,9 +72,9 @@ def _aplicar_biscoitos(
     encontrista: Encontrista,
     ja_tem_biscoitos: bool,
 ) -> tuple[list[tuple[ItemDetalhamento, object]], bool]:
-    """Biscoitos é um item físico só reconhecido UMA VEZ por lançamento —
-    mesma lógica da taxa de cartão: quando várias fichas de Encontrista
-    compartilham o mesmo pagamento, só a primeira que casar recebe o item de
+    """Biscoitos é um item físico só reconhecido UMA VEZ por lançamento:
+    quando várias fichas de Encontrista compartilham o mesmo pagamento, só a
+    primeira que casar recebe o item de
     Biscoitos; as próximas não repetem, mesmo que a própria observação delas
     também mencione biscoito. A descrição identifica de qual ficha veio (id
     da ficha + nome do padrinho), já que o item de Biscoitos não carrega

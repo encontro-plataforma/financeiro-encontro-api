@@ -10,7 +10,7 @@ from app.services.auditoria.estrategias import (
     EstrategiaAuditoriaEncontrista,
 )
 from app.services.auditoria.pipeline import PipelineAuditoria
-from app.services.auditoria.relator import RelatorProcessamento
+from app.services.auditoria.relator import RelatorProcessamento, RelatorSimulacao
 from app.services.auditoria.sink import SimulacaoSink
 
 
@@ -102,3 +102,35 @@ def test_pipeline_reporta_sem_lancamento_quando_etapa_a_nao_acha_candidato():
     detalhe = resultado["detalhes_nao_auditados"][0]
     assert "motivo" not in detalhe
     assert "lancamento_id" not in detalhe
+
+
+def test_pipeline_cartao_nao_gera_detalhamento_de_taxa_e_usa_valor_bruto():
+    """Lançamento de cartão (cart_taxa/cart_valor_liquido preenchidos): a
+    extração não deve mais criar um Detalhamento separado pra taxa da
+    maquininha nem descontá-la do item de Inscrição -- o item de Inscrição
+    usa o valor cheio (bruto) da pendência, igual a qualquer outra forma de
+    pagamento."""
+    pendente_encontrista = _pendente(
+        2, "Maria Souza", "Maria Souza", 100, "Pagamento via cartão de crédito em 1 parcela"
+    )
+    lancamento = _lancamento_candidato(50, "Venda cartão VISA", 100)
+    lancamento.forma_pagamento = FormaPagamento.CARTAO_CREDITO
+    lancamento.cart_taxa = Decimal("3.5")
+    lancamento.cart_valor_liquido = Decimal("96.5")
+
+    db = _db_com(None, pendente_encontrista, lancamento)
+
+    with patch(
+        "app.services.auditoria.pipeline.RegraRepository.list_ativos_por_escopos",
+        return_value=[],
+    ):
+        pipeline = PipelineAuditoria([EstrategiaAuditoriaEncontrista()])
+        resultado = pipeline.executar(
+            db,
+            SimulacaoSink(),
+            RelatorSimulacao(itens_existentes=[]),
+            lancamento_id_alvo=lancamento.id,
+        )
+
+    assert [d["tipo"] for d in resultado["detalhamentos"]] == ["INSCRICAO_ENCONTRISTA"]
+    assert resultado["detalhamentos"][0]["valor"] == Decimal("100")

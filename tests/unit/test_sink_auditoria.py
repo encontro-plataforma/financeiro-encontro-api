@@ -63,10 +63,10 @@ def test_simulacao_aplicar_barra_pendencia_que_estoura_capacidade_ja_consumida()
 def test_simulacao_flags_default_do_banco_e_podem_ser_marcadas_manualmente():
     sink = SimulacaoSink()
 
-    lancamento_com_taxa = _lancamento(id_=1)
-    db_com_taxa = MagicMock()
-    db_com_taxa.query.return_value.filter.return_value.first.return_value = MagicMock()
-    assert sink.ja_tem_taxa_cartao(db_com_taxa, lancamento_com_taxa) is True
+    lancamento_com_biscoitos = _lancamento(id_=1)
+    db_com_biscoitos = MagicMock()
+    db_com_biscoitos.query.return_value.filter.return_value.first.return_value = MagicMock()
+    assert sink.ja_tem_biscoitos(db_com_biscoitos, lancamento_com_biscoitos) is True
 
     lancamento_sem = _lancamento(id_=2)
     db_sem = _db_sem_detalhamentos()
