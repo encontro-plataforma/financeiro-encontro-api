@@ -66,10 +66,12 @@ class Detalhamento(Base):
 # dos vários lançamentos pro usuário fazer manualmente -- só terminou quando
 # TODOS os lançamentos esperados tiverem sido vinculados. A comparação é feita
 # contra o valor CHEIO (bruto) de cada Lancamento distinto vinculado à pessoa,
-# não contra a soma dos Detalhamento dela: se um dos lançamentos veio de
-# cartão, a taxa da maquininha vira um Detalhamento separado (não ligado a
-# essa pessoa) -- somar só os Detalhamento da pessoa deixaria a taxa de fora
-# e a soma nunca bateria com o `pagamento` (bruto) registrado na ficha.
+# não contra a soma dos Detalhamento dela -- isso importa sobretudo pra
+# lançamentos de cartão, cuja taxa da maquininha nunca vira Detalhamento (só
+# é informativa no relatório, via `Lancamento.cart_taxa`): somar só os
+# Detalhamento da pessoa bateria igual com o bruto nesse caso específico, mas
+# manter a comparação contra o Lancamento cheio evita reintroduzir esse tipo
+# de divergência se a extração um dia passar a usar um valor líquido.
 _TOLERANCIA_AUDITORIA = Decimal("0.01")
 
 # Mesmo padrão de app/integracao/regras/deteccao_pagamento_multiplo.py

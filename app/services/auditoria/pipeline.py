@@ -1,4 +1,4 @@
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -15,7 +15,7 @@ from app.models.enums import StatusLancamento, TipoLancamento
 from app.models.lancamento import Lancamento
 from app.repositories.regra_repository import RegraRepository
 from app.services.auditoria.estrategias import EstrategiaAuditoriaPessoa
-from app.services.auditoria.hooks import _aplicar_taxa_cartao, _to_pendencia_auditoria
+from app.services.auditoria.hooks import _to_pendencia_auditoria
 from app.services.auditoria.relator import RelatorAuditoria
 from app.services.auditoria.sink import AplicacaoSink
 from app.utils.decimal_utils import to_decimal
@@ -26,12 +26,6 @@ MOTIVO_SEM_VALOR_IDENTIFICADO = (
     "Lançamento já possui outra inscrição vinculada e a observação "
     "não permite identificar o valor desta pessoa."
 )
-
-# Nome de "regra" exibido pra o item de taxa de cartão na resposta de
-# simulação -- no fluxo real esse nome é descartado (Detalhamento não tem
-# coluna de "regra"), mas passá-lo sempre aqui evita que o pipeline precise
-# saber se está em modo real ou simulação.
-_REGRA_TAXA_CARTAO = "Taxa do Cartão (automático)"
 
 
 def _buscar_pendentes(db: Session, estrategia: EstrategiaAuditoriaPessoa):
@@ -127,28 +121,21 @@ class PipelineAuditoria:
         sink: AplicacaoSink,
     ) -> ResultadoPendencia:
         """Passo 4: Etapa B (Extração) + hook de pós-processamento por tipo
-        de pessoa (ex.: biscoitos) + taxa de cartão + aplicação (grava de
-        verdade ou só simula, via `sink`)."""
+        de pessoa (ex.: biscoitos) + aplicação (grava de verdade ou só
+        simula, via `sink`). Lançamentos de cartão (`cart_taxa`/
+        `cart_valor_liquido`) não geram Detalhamento nenhum para a taxa da
+        maquininha -- ela é só informativa no relatório (ver
+        `relatorio_service._valor_taxa_cartao`), a extração usa sempre o
+        valor cheio (bruto) da pendência."""
         permite_fallback = sink.capacidade_restante(db, lancamento) >= (
             to_decimal(lancamento.valor) - _TOLERANCIA
-        )
-
-        # Lançamento veio do extrato de cartão: a igreja só fica com o valor
-        # líquido (o resto é taxa da maquininha), então a extração usa o
-        # líquido no lugar do bruto. O match (passo 3), acima, já rodou com o
-        # pagamento original (bruto), que é o que bate com o valor do lançamento.
-        eh_cartao = lancamento.cart_taxa is not None
-        pendencia_extracao = (
-            replace(pendencia, pagamento=to_decimal(lancamento.cart_valor_liquido))
-            if eh_cartao
-            else pendencia
         )
 
         grupos = RegraRepository.list_ativos_por_escopos(
             db, [estrategia.config.escopo_regra_grupo]
         )
         itens_com_origem = extrair_detalhamentos_com_origem(
-            pendencia_extracao,
+            pendencia,
             grupos,
             estrategia.config.tipo_detalhamento,
             permite_fallback,
@@ -159,16 +146,6 @@ class PipelineAuditoria:
         itens_com_origem = estrategia.pos_processar(
             db, itens_com_origem, inscricao_pendente, sink, lancamento
         )
-
-        if eh_cartao:
-            ja_tem_taxa = sink.ja_tem_taxa_cartao(db, lancamento)
-            itens_com_origem = _aplicar_taxa_cartao(
-                itens_com_origem,
-                to_decimal(lancamento.cart_taxa),
-                ja_tem_taxa,
-                origem_taxa=_REGRA_TAXA_CARTAO,
-            )
-            sink.marcar_taxa_cartao_aplicada(lancamento)
 
         erro = sink.aplicar(db, lancamento, [item for item, _ in itens_com_origem])
         if erro:
