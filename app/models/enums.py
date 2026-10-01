@@ -10,6 +10,7 @@ class FormaPagamento(str, Enum):
     DINHEIRO = "DINHEIRO"
     CARTAO_CREDITO = "CARTAO_CREDITO"
     CARTAO_DEBITO = "CARTAO_DEBITO"
+    ISENCAO = "ISENCAO"
 
 
 class StatusLancamento(str, Enum):

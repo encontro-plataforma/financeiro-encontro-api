@@ -17,9 +17,11 @@ from sqlalchemy.orm import column_property, relationship
 from sqlalchemy.sql import func
 
 from app.database.base import Base
+from app.models.circulo import Circulo
 from app.models.encontreiro import Encontreiro
 from app.models.encontrista import Encontrista
-from app.models.enums import TipoDetalhamento
+from app.models.enums import AcessoEquipe, TipoDetalhamento
+from app.models.equipe import Equipe
 from app.models.lancamento import Lancamento
 
 tipo_detalhamento_enum = ENUM(
@@ -109,16 +111,50 @@ def _is_pagamento_multiplo(observacao_col):
     return func.coalesce(observacao_col.op("~*")(_PADRAO_PAGAMENTO_MULTIPLO_SQL), False)
 
 
-def _auditado(tipo, referencia_col, pagamento_col, observacao_col):
+def _equipe_cancelada(equipe_id_col):
+    """Encontreiro cujo Equipe é N/A é considerado cancelado -- ver
+    Equipe.acesso (app/models/equipe.py). `coalesce` garante False (em vez de
+    NULL) quando não há equipe vinculada, pra não "sujar" o OR em
+    `_auditado`."""
+    subquery = (
+        select(Equipe.acesso)
+        .where(Equipe.id == equipe_id_col)
+        .correlate_except(Equipe)
+        .scalar_subquery()
+    )
+    return func.coalesce(subquery == AcessoEquipe.NA, False)
+
+
+def _circulo_cancelado(circulo_id_col):
+    """Simétrico a `_equipe_cancelada`, mas para Encontrista: marcado pelo
+    Circulo.cancelado (app/models/circulo.py), não por nome."""
+    subquery = (
+        select(Circulo.cancelado)
+        .where(Circulo.id == circulo_id_col)
+        .correlate_except(Circulo)
+        .scalar_subquery()
+    )
+    return func.coalesce(subquery, False)
+
+
+def _auditado(tipo, referencia_col, pagamento_col, observacao_col, cancelado_expr=None):
     soma_ok = _soma_lancamentos_vinculados(tipo, referencia_col) >= (
         func.coalesce(pagamento_col, 0) - _TOLERANCIA_AUDITORIA
     )
-    return and_(
+    vinculado = and_(
         _existe_vinculo(tipo, referencia_col),
         # "se não é pagamento múltiplo, só de ter vínculo já é auditado;
         # se é, só quando a soma dos lançamentos vinculados cobrir o pagamento"
         or_(~_is_pagamento_multiplo(observacao_col), soma_ok),
     )
+    # Ficha cancelada (Equipe N/A / Círculo Cancelado) é considerada auditada
+    # de cara, com ou sem Detalhamento vinculado -- ela sai da fila de
+    # pendências da auditoria automática (ver _buscar_pendentes em
+    # app/services/auditoria/pipeline.py, que filtra `auditado.is_(False)`),
+    # mas continua podendo receber vínculo manual pra manter histórico.
+    if cancelado_expr is None:
+        return vinculado
+    return or_(vinculado, cancelado_expr)
 
 
 Encontreiro.is_pagamento_multiplo = column_property(
@@ -134,6 +170,7 @@ Encontreiro.auditado = column_property(
         Encontreiro.id,
         Encontreiro.pagamento,
         Encontreiro.observacao,
+        cancelado_expr=_equipe_cancelada(Encontreiro.equipe_id),
     )
 )
 
@@ -143,6 +180,7 @@ Encontrista.auditado = column_property(
         Encontrista.id,
         Encontrista.pagamento,
         Encontrista.observacao,
+        cancelado_expr=_circulo_cancelado(Encontrista.circulo_id),
     )
 )
 
