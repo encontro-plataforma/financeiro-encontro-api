@@ -31,7 +31,10 @@ class DetalhamentoCreate(BaseModel):
     lancamento_id: int
     tipo: TipoDetalhamento
     referencia_id: int | None = None
-    valor: Decimal = Field(..., gt=0)
+    # ge=0 (não gt=0): uma ficha isenta (forma de pagamento ISENÇÃO) tem
+    # pagamento zerado e precisa poder vincular um Detalhamento também
+    # zerado -- ver "Nova forma de pagamento ISENÇÃO" no HISTORY.md.
+    valor: Decimal = Field(..., ge=0)
     descricao: str = ""
 
 
@@ -39,5 +42,5 @@ class DetalhamentoUpdate(BaseModel):
     lancamento_id: int | None = None
     tipo: TipoDetalhamento | None = None
     referencia_id: int | None = None
-    valor: Decimal | None = Field(None, gt=0)
+    valor: Decimal | None = Field(None, ge=0)
     descricao: str | None = None

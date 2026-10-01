@@ -34,7 +34,7 @@ DEFAULT_EQUIPES = [
     {"id": 23, "nome": "ORAÇÃO",                    "acesso": AcessoEquipe.VERMELHO},
     {"id": 24, "nome": "ORDEM",                     "acesso": AcessoEquipe.VERMELHO},
     {"id": 25, "nome": "PATRIMÔNIO",                "acesso": AcessoEquipe.VERMELHO},
-    {"id": 26, "nome": "VISITAÇÃO E EXTERNA",       "acesso": AcessoEquipe.VERMELHO},
+    {"id": 26, "nome": "VISITAÇÃO & EXTERNA",       "acesso": AcessoEquipe.VERMELHO},
     {"id": 27, "nome": "N/A",                       "acesso": AcessoEquipe.NA},
 ]
 

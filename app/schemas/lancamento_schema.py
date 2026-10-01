@@ -8,7 +8,10 @@ from app.schemas.finalidade_schema import FinalidadeResponse
 
 class LancamentoBase(BaseModel):
     descricao: str = Field(..., min_length=3, max_length=255)
-    valor: float = Field(..., gt=0)
+    # ge=0 (não gt=0): um lançamento de ISENÇÃO (ver FormaPagamento) entra no
+    # extrato de espécie com valor zerado -- representa a ausência de
+    # movimento financeiro real, não um erro de preenchimento.
+    valor: float = Field(..., ge=0)
     tipo: TipoLancamento
     forma_pagamento: FormaPagamento
     data_pagamento: datetime

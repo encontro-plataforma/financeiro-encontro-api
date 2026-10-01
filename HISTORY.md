@@ -1,5 +1,26 @@
 # Histórico de Versões
 
+## [0.6.0] — 2026-10-01
+
+### Adicionado
+- Nova forma de pagamento `FormaPagamento.ISENCAO`: cobre uma pessoa isenta da inscrição. Entra pelo
+  extrato de espécie com `TIPO=ISENÇÃO` (`EspecieService`, ao lado de `ENCONTREIRO`/`ENCONTRISTA`/`OFERTA`) e
+  nasce com `Lancamento.valor = 0` — exige a coluna `valor` igual a `0,00` na linha do CSV. `Lancamento.valor`
+  e `Detalhamento.valor` passam a aceitar `0` (`ge=0`, antes `gt=0`), e a pendência de uma ficha isenta
+  (`Encontreiro.pagamento`/`Encontrista.pagamento == 0`, distinto de `NULL`/não preenchido) passa a entrar na
+  fila da Auditoria (`_buscar_pendentes` em `app/services/auditoria/pipeline.py`: `pagamento >= 0`)
+- Etapa A (`motor_match.py`) reconhece "isen..." ("isenção"/"isento"/"isenta") na observação da pendência
+  como a forma de pagamento `ISENÇÃO`, e para de descartar um candidato de valor `0` pela checagem de
+  capacidade restante (que, pra um lançamento assim, sempre pareceria "100% consumido")
+- `Circulo` ganha a coluna `cancelado` (bool, default `false`) — exposta em `CirculoResponse`/`Create`/
+  `Update`. Um círculo "CANCELADO" (id `7`, cinza) é seedado como o padrão, mas qualquer círculo pode ser
+  marcado assim via CRUD, mesmo padrão de `Equipe.acesso == N/A`
+- `Encontrista.auditado` passa a ser `True` também quando o círculo da ficha é `cancelado == True`, e
+  `Encontreiro.auditado` quando a equipe é `N/A` — em ambos os casos independente de haver `Detalhamento`
+  vinculado (`app/models/detalhamento.py`: `_equipe_cancelada`/`_circulo_cancelado`). Como a Auditoria
+  automática só processa pendências com `auditado == False`, uma ficha cancelada nunca mais entra nessa fila
+  — mas continua podendo receber (ou perder) um vínculo manual, por exemplo pra preservar histórico
+
 ## [0.4.0] — 2026-08-15
 
 ### Adicionado

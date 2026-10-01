@@ -33,7 +33,15 @@ def _buscar_pendentes(db: Session, estrategia: EstrategiaAuditoriaPessoa):
     estratégia) ainda não conciliadas com um pagamento pendente, na ordem em
     que os pagamentos entraram -- mesma ordenação usada tanto pelo fluxo real
     quanto pela simulação, pra não haver divergência de comportamento entre
-    os dois modos."""
+    os dois modos.
+
+    `pagamento >= 0` (e não `> 0`): uma ficha isenta (forma de pagamento
+    ISENÇÃO) tem `pagamento` explicitamente zerado, não nulo -- é isso que a
+    distingue de uma ficha que simplesmente ainda não teve pagamento
+    registrado (`pagamento` nulo, continua fora da fila). `auditado.is_(False)`
+    já filtra fichas canceladas (Equipe N/A / Círculo Cancelado) pra fora
+    daqui -- ver Encontreiro.auditado/Encontrista.auditado em
+    app/models/detalhamento.py."""
     modelo = estrategia.config.modelo
     return (
         db.query(modelo)
@@ -41,7 +49,7 @@ def _buscar_pendentes(db: Session, estrategia: EstrategiaAuditoriaPessoa):
             modelo.auditado.is_(False),
             modelo.dt_pagamento.isnot(None),
             modelo.pagamento.isnot(None),
-            modelo.pagamento > 0,
+            modelo.pagamento >= 0,
         )
         .order_by(modelo.dt_pagamento)
         .all()

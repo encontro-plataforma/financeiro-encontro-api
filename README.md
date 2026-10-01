@@ -5,7 +5,7 @@ Backend do sistema **Financeiro Encontro**, responsável por gerenciar toda a l�
 Este serviço fornece uma API REST para controle de:
 
 - Entradas e saídas financeiras
-- Formas de pagamento (PIX, dinheiro, cartão)
+- Formas de pagamento (PIX, dinheiro, cartão, isenção)
 - Finalidades (oferta, campanha, inscrição)
 - Importação e conciliação de extratos bancários via CSV
 - Secretaria: cadastro de Encontreiros/Encontristas (via CSV), Equipes e Círculos
@@ -231,7 +231,7 @@ Regras de negócio no CRUD de usuários:
 - `status` — `CONCILIADO` ou `NAO_CONCILIADO`
 - `tipo` — `RECEITA` ou `DESPESA`
 - `finalidade_id` / `finalidade_ids[]` — uma finalidade ou uma lista de finalidades
-- `forma_pagamento[]` — `PIX`, `DINHEIRO`, `CARTAO_CREDITO`, `CARTAO_DEBITO`
+- `forma_pagamento[]` — `PIX`, `DINHEIRO`, `CARTAO_CREDITO`, `CARTAO_DEBITO`, `ISENCAO`
 - `descricao` — busca parcial na descrição
 - `exclude_ids[]` — exclui IDs já carregados (usado na paginação incremental da tela de Conciliação)
 - `skip` / `limit` — paginação
@@ -311,7 +311,8 @@ Usado tanto para extratos bancários (`/conciliacao/upload`) quanto para os CSVs
 - `nome` / `apelido` / `nome_ou_apelido` — busca parcial
 - `equipe_nome` / `equipe_acesso` / `equipe_ids[]`
 - `situacao_camisa[]` — `PENDENTE`, `SOLICITADA`, `RECEBIDA`, `ENTREGUE`, `SEM_BLUSA`
-- `auditado` — `true`/`false` (já foi vinculado a um lançamento via Detalhamento)
+- `auditado` — `true`/`false` (já foi vinculado a um lançamento via Detalhamento, **ou** a equipe é `N/A` —
+  ficha cancelada conta como auditada mesmo sem nenhum vínculo)
 - `dt_inscricao_inicio` / `dt_inscricao_fim`
 
 ---
@@ -332,7 +333,8 @@ Usado tanto para extratos bancários (`/conciliacao/upload`) quanto para os CSVs
 **Filtros disponíveis no GET `/encontristas/`:**
 - `nome` / `apelido` / `nome_ou_apelido` — busca parcial
 - `circulo_nome` / `circulo_ids[]` (`0` = sem círculo) / `padrinho_id`
-- `auditado` — `true`/`false`
+- `auditado` — `true`/`false` (já foi vinculado a um lançamento via Detalhamento, **ou** o círculo é
+  `cancelado=true` — ficha cancelada conta como auditada mesmo sem nenhum vínculo)
 - `camisa` / `blusa` / `carta` / `album`
 - `dt_entrega_inicio` / `dt_entrega_fim`, `dt_nascimento_inicio` / `dt_nascimento_fim`
 
@@ -362,6 +364,11 @@ Usado tanto para extratos bancários (`/conciliacao/upload`) quanto para os CSVs
 | PUT | `/circulos/{id}` | Atualizar círculo |
 | DELETE | `/circulos/{id}` | Excluir círculo |
 
+Campo `cancelado` (bool, padrão `false`): marca um círculo como representando cancelamento — um
+Encontrista com esse círculo é considerado automaticamente auditado, com ou sem Detalhamento vinculado (ver
+"Filtros disponíveis" dos Encontristas acima). O círculo seedado `CANCELADO` (id `7`) já nasce com
+`cancelado=true`, mas qualquer círculo pode receber esse flag via `PUT /circulos/{id}`.
+
 ---
 
 ### Detalhamentos `/detalhamentos`
@@ -378,7 +385,7 @@ Detalhamentos.
 | POST | `/detalhamentos/` | Criar detalhamento |
 | PUT | `/detalhamentos/{id}` | Atualizar detalhamento |
 | DELETE | `/detalhamentos/{id}` | Excluir detalhamento (a inscrição volta a ficar pendente de auditoria) |
-| POST | `/detalhamentos/auditoria` | Roda a auditoria manualmente: tenta casar todo Encontreiro/Encontrista pendente (`auditado=false`, com pagamento e data registrados) a um lançamento de RECEITA compatível |
+| POST | `/detalhamentos/auditoria` | Roda a auditoria manualmente: tenta casar todo Encontreiro/Encontrista pendente (`auditado=false`, com pagamento `>= 0` e data registrados — fichas canceladas já são `auditado=true` e nunca entram aqui) a um lançamento de RECEITA compatível |
 
 **Filtros disponíveis no GET `/detalhamentos/`:**
 - `lancamento_id` / `tipo` (`INSCRICAO_ENCONTREIRO`, `INSCRICAO_ENCONTRISTA`, `OFERTA`, `OUTRO`) / `referencia_id`
@@ -399,7 +406,7 @@ Detalhamentos.
 
 **Filtros disponíveis (compartilhados por todos os endpoints):**
 - `data_inicio` / `data_fim` — intervalo de datas (padrão: hoje → hoje+30d)
-- `forma_pagamento[]` — `PIX`, `DINHEIRO`, `CARTAO_CREDITO`, `CARTAO_DEBITO`
+- `forma_pagamento[]` — `PIX`, `DINHEIRO`, `CARTAO_CREDITO`, `CARTAO_DEBITO`, `ISENCAO`
 - `finalidade_id[]` — lista de IDs de finalidade
 - `tipo` — `RECEITA` ou `DESPESA`
 - `status` — `CONCILIADO` ou `NAO_CONCILIADO`

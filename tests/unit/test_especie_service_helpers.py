@@ -1,5 +1,6 @@
 from app.models.enums import TipoDetalhamento
 from app.services.especie_service import (
+    eh_tipo_isencao,
     formatar_descricao_detalhamento,
     resolver_nome_finalidade_avulso,
     resolver_tipo_detalhamento,
@@ -53,3 +54,15 @@ def test_resolver_finalidade_avulso_conhece_categorias_seedadas():
 
 def test_resolver_finalidade_avulso_categoria_desconhecida_retorna_none():
     assert resolver_nome_finalidade_avulso("PATIO_DE_JOGOS") is None
+
+
+def test_eh_tipo_isencao_reconhece_com_e_sem_acento():
+    assert eh_tipo_isencao("ISENÇÃO") is True
+    assert eh_tipo_isencao("isencao") is True
+    assert eh_tipo_isencao("Isenção") is True
+
+
+def test_eh_tipo_isencao_nao_confunde_com_inscricao_normal():
+    assert eh_tipo_isencao("ENCONTREIRO") is False
+    assert eh_tipo_isencao("ENCONTRISTA") is False
+    assert eh_tipo_isencao("OFERTA") is False

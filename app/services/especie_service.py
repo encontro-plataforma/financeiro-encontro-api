@@ -33,6 +33,14 @@ _ALIASES_INSCRICAO = {
     "INSCRICAO_ENCONTRISTA": TipoDetalhamento.INSCRICAO_ENCONTRISTA,
 }
 
+# TIPO=ISENÇÃO (ou "ISENCAO", já sem acento) -- pessoa recebeu isenção na
+# inscrição: entra no extrato de espécie com VALOR 0 e nasce com forma de
+# pagamento ISENÇÃO em vez de DINHEIRO. Não precisa distinguir Encontreiro
+# de Encontrista aqui (igual às linhas de inscrição normais, o Lancamento
+# criado é genérico; é a Auditoria, pelo nome, quem liga à ficha certa de
+# qualquer um dos dois tipos).
+_TOKEN_ISENCAO = "ISENCAO"
+
 # Nomes de Finalidade de RECEITA já seedados que um "tipo" avulso do CSV pode
 # corresponder diretamente (ver app/database/seeds/seed_finalidade.py).
 _NOMES_FINALIDADE_AVULSO = {"OFERTA", "CAMPANHA", "PERSONALIZADO", "LANCHONETE", "LIVRARIA"}
@@ -69,6 +77,10 @@ def resolver_nome_finalidade_avulso(tipo_csv: str) -> str | None:
     return norm if norm in _NOMES_FINALIDADE_AVULSO else None
 
 
+def eh_tipo_isencao(tipo_csv: str) -> bool:
+    return _tipo_normalizado(tipo_csv) == _TOKEN_ISENCAO
+
+
 class EspecieService:
 
     @staticmethod
@@ -102,10 +114,16 @@ class EspecieService:
         pra quem chama decidir a contagem -- exceções (ValueError, etc.) sobem
         pra virar "erro" de linha."""
         tipo_detalhamento = resolver_tipo_detalhamento(linha.tipo)
+        isencao = eh_tipo_isencao(linha.tipo)
 
-        if tipo_detalhamento in _TIPOS_INSCRICAO:
+        if tipo_detalhamento in _TIPOS_INSCRICAO or isencao:
             if not linha.nome:
-                raise ValueError("coluna 'nome' é obrigatória para linhas de inscrição (ENCONTREIRO/ENCONTRISTA)")
+                raise ValueError(
+                    "coluna 'nome' é obrigatória para linhas de inscrição (ENCONTREIRO/ENCONTRISTA/ISENÇÃO)"
+                )
+
+            if isencao and linha.valor != 0:
+                raise ValueError("linha de isenção (TIPO=ISENÇÃO) deve ter a coluna 'valor' igual a 0,00")
 
             descricao_lancamento = linha.nome
             observacao_lancamento = linha.observacao or ""
@@ -119,11 +137,15 @@ class EspecieService:
             # Inscrição nasce NAO_CONCILIADO (LancamentoService.create já força
             # isso) -- não cria Detalhamento aqui; a Auditoria (Etapa A/B) que
             # roda no fim do processamento é quem liga isso à pendência certa.
+            # Isenção usa a forma de pagamento ISENÇÃO em vez de DINHEIRO --
+            # é o que permite a Etapa A (ver motor_match._TOKENS_FORMA_PAGAMENTO)
+            # restringir o match só a lançamentos de isenção, mesmo com valor
+            # zero (que, sozinho, bateria com qualquer lançamento do dia).
             LancamentoService.create(db, {
                 "descricao": descricao_lancamento,
                 "valor": linha.valor,
                 "tipo": TipoLancamento.RECEITA,
-                "forma_pagamento": FormaPagamento.DINHEIRO,
+                "forma_pagamento": FormaPagamento.ISENCAO if isencao else FormaPagamento.DINHEIRO,
                 "data_pagamento": linha.data,
                 "hash_transacao": hash_value,
                 "observacao": observacao_lancamento,

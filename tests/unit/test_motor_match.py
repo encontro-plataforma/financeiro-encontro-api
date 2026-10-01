@@ -253,3 +253,47 @@ def test_debito_sozinho_sem_acento_e_tratado_como_cartao_debito():
     credito = _candidato(2, "JOAO DA SILVA", "100", FormaPagamento.CARTAO_CREDITO)
 
     assert selecionar_lancamento(pendencia, [credito, debito]) is debito
+
+
+# ─── ISENÇÃO (pagamento = 0) ──────────────────────────────────────────────
+
+
+def test_isencao_casa_mesmo_com_candidato_de_valor_zero():
+    # Lançamento de isenção nasce com valor 0 -- capacidade restante (valor -
+    # soma_detalhamentos) é sempre 0 pra ele, o que pareceria "100% consumido"
+    # se não houvesse a exceção pra valor zero.
+    pendencia = _pendencia(pagamento="0", observacao="Isenção concedida na inscrição")
+    isento = _candidato(1, "JOAO DA SILVA", "0", FormaPagamento.ISENCAO)
+
+    assert selecionar_lancamento(pendencia, [isento]) is isento
+
+
+def test_isencao_sem_acento_tambem_e_reconhecida():
+    pendencia = _pendencia(pagamento="0", observacao="ISENCAO na inscricao")
+    isento = _candidato(1, "JOAO DA SILVA", "0", FormaPagamento.ISENCAO)
+
+    assert selecionar_lancamento(pendencia, [isento]) is isento
+
+
+def test_isencao_nao_casa_com_lancamento_de_outra_forma_de_pagamento():
+    pendencia = _pendencia(pagamento="0", observacao="Isenção concedida na inscrição")
+    dinheiro = _candidato(1, "JOAO DA SILVA", "0", FormaPagamento.DINHEIRO)
+
+    assert selecionar_lancamento(pendencia, [dinheiro]) is None
+
+
+def test_isencao_ainda_exige_nome_do_pagador_na_descricao():
+    pendencia = _pendencia(pagamento="0", observacao="Isenção concedida na inscrição")
+    isento_de_outra_pessoa = _candidato(1, "MARIA OLIVEIRA", "0", FormaPagamento.ISENCAO)
+
+    assert selecionar_lancamento(pendencia, [isento_de_outra_pessoa]) is None
+
+
+def test_candidato_valor_zero_sem_isencao_na_observacao_nao_casa():
+    # Sem nenhuma forma de pagamento reconhecível na observação, o motor
+    # assume PIX (comportamento padrão já existente) -- um candidato de
+    # valor zero com forma ISENÇÃO não deveria casar nesse caso.
+    pendencia = _pendencia(pagamento="0", observacao=None)
+    isento = _candidato(1, "JOAO DA SILVA", "0", FormaPagamento.ISENCAO)
+
+    assert selecionar_lancamento(pendencia, [isento]) is None

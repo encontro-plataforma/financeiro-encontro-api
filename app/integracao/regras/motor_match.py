@@ -14,12 +14,17 @@ _TOLERANCIA = Decimal("0.01")
 # "Crédito"/"débito" também são reconhecidos sozinhos, sem a palavra
 # "cartão" junto (ex.: "pagamento via crédito em 1 parcela") — sempre como
 # cartão, já que não existe crédito/débito fora de cartão neste domínio.
+# "isen" casa tanto "isenção"/"isenção" (sem acento: "isencao") quanto
+# "isento"/"isenta" -- avaliado antes de "especie" pra evitar qualquer
+# ambiguidade (não há sobreposição real entre os dois, mas a ordem documenta
+# a intenção).
 _TOKENS_FORMA_PAGAMENTO = [
     (re.compile(r"cartao\s+de\s+credito"), FormaPagamento.CARTAO_CREDITO),
     (re.compile(r"cartao\s+de\s+debito"), FormaPagamento.CARTAO_DEBITO),
     (re.compile(r"cartao"), FormaPagamento.CARTAO_CREDITO),
     (re.compile(r"\bcredito\b"), FormaPagamento.CARTAO_CREDITO),
     (re.compile(r"\bdebito\b"), FormaPagamento.CARTAO_DEBITO),
+    (re.compile(r"isen"), FormaPagamento.ISENCAO),
     (re.compile(r"pix"), FormaPagamento.PIX),
     (re.compile(r"dinheiro"), FormaPagamento.DINHEIRO),
     (re.compile(r"especie"), FormaPagamento.DINHEIRO),
@@ -127,11 +132,22 @@ def selecionar_lancamento(
     case-insensitive e sem acento), e então filtra pela forma de pagamento
     mencionada na observação ("espécie" tratado como sinônimo de dinheiro;
     se a observação não mencionar nenhuma forma reconhecível, assume PIX).
-    Em caso de empate, vence o de menor id (mais antigo)."""
+    Em caso de empate, vence o de menor id (mais antigo).
+
+    Candidato de valor zero (ISENÇÃO) nunca é descartado pela checagem de
+    "capacidade restante": capacidade = valor - soma_detalhamentos é sempre
+    0 pra um lançamento assim (0 - 0), o que o faria parecer "100% consumido"
+    mesmo intocado. Como só existe lançamento de valor zero quando é mesmo
+    uma isenção (criada já com forma de pagamento ISENÇÃO), aceitar sempre é
+    seguro -- `status NAO_CONCILIADO` na consulta de candidatos já impede que
+    um já vinculado a outra pessoa seja escolhido de novo."""
     candidatos_valor_ok = [
         candidato for candidato in candidatos
         if candidato.valor >= pendencia.pagamento - _TOLERANCIA
-        and (candidato.valor - candidato.soma_detalhamentos) > _TOLERANCIA
+        and (
+            (candidato.valor - candidato.soma_detalhamentos) > _TOLERANCIA
+            or candidato.valor <= _TOLERANCIA
+        )
     ]
     if not candidatos_valor_ok:
         return None
