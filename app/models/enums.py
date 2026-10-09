@@ -69,3 +69,5 @@ class TipoOrigemUpload(str, Enum):
     BANCARIO = "BANCARIO"
     ESPECIE = "ESPECIE"
     CARTAO = "CARTAO"
+    ENCONTREIRO = "ENCONTREIRO"
+    ENCONTRISTA = "ENCONTRISTA"

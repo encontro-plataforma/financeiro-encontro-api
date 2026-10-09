@@ -26,8 +26,6 @@ class UploadFile(Base):
     tamanho_bytes = Column(Integer, nullable=True)
     processado_em = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(status_enum, nullable=False, server_default="PROCESSANDO")
-    # Só preenchido pelos fluxos financeiros (bancário/espécie/cartão) -- fica
-    # nulo para uploads de encontreiros/encontristas, que não são "extratos".
     tipo_origem = Column(tipo_origem_enum, nullable=True)
     error_code = Column(String(50), nullable=True)
     error_message = Column(String, nullable=True)
