@@ -38,7 +38,9 @@ _ALIASES_INSCRICAO = {
 # pagamento ISENÇÃO em vez de DINHEIRO. Não precisa distinguir Encontreiro
 # de Encontrista aqui (igual às linhas de inscrição normais, o Lancamento
 # criado é genérico; é a Auditoria, pelo nome, quem liga à ficha certa de
-# qualquer um dos dois tipos).
+# qualquer um dos dois tipos). Uma linha de inscrição comum (TIPO=ENCONTREIRO/
+# ENCONTRISTA) com VALOR 0 -- ficha isenta lançada sem marcar TIPO=ISENÇÃO
+# explicitamente -- também conta como isenção (ver `_processar_linha`).
 _TOKEN_ISENCAO = "ISENCAO"
 
 # Nomes de Finalidade de RECEITA já seedados que um "tipo" avulso do CSV pode
@@ -110,20 +112,26 @@ class EspecieService:
 
     @staticmethod
     def _processar_linha(db: Session, linha: EspecieLinhaDTO) -> dict:
-        """Cria o(s) registro(s) da linha. Retorna {"duplicado": bool, ...}
-        pra quem chama decidir a contagem -- exceções (ValueError, etc.) sobem
-        pra virar "erro" de linha."""
+        """Cria o(s) registro(s) da linha. Retorna {"duplicado": bool,
+        "descricao", "valor", "data"} pra quem chama decidir a contagem e
+        montar os detalhes de inseridos/duplicados -- exceções (ValueError,
+        etc.) sobem pra virar "erro" de linha."""
         tipo_detalhamento = resolver_tipo_detalhamento(linha.tipo)
-        isencao = eh_tipo_isencao(linha.tipo)
+        isencao_tipo = eh_tipo_isencao(linha.tipo)
 
-        if tipo_detalhamento in _TIPOS_INSCRICAO or isencao:
+        if tipo_detalhamento in _TIPOS_INSCRICAO or isencao_tipo:
             if not linha.nome:
                 raise ValueError(
                     "coluna 'nome' é obrigatória para linhas de inscrição (ENCONTREIRO/ENCONTRISTA/ISENÇÃO)"
                 )
 
-            if isencao and linha.valor != 0:
+            if isencao_tipo and linha.valor != 0:
                 raise ValueError("linha de isenção (TIPO=ISENÇÃO) deve ter a coluna 'valor' igual a 0,00")
+
+            # Além do TIPO=ISENÇÃO explícito, uma linha de inscrição comum
+            # (ENCONTREIRO/ENCONTRISTA) com valor 0 também é isenção -- não
+            # existe pagamento real de R$ 0,00 em dinheiro.
+            isencao = isencao_tipo or linha.valor == 0
 
             descricao_lancamento = linha.nome
             observacao_lancamento = linha.observacao or ""
@@ -152,7 +160,7 @@ class EspecieService:
                 "finalidade_id": None,
                 "sugestao_finalidade_id": finalidade_inscricao.id if finalidade_inscricao else None,
             })
-            return {"duplicado": False}
+            return {"duplicado": False, "descricao": descricao_lancamento, "valor": float(linha.valor), "data": linha.data.isoformat()}
 
         # Linha avulsa (Oferta/Campanha/Personalizado/Livraria/Lanchonete/
         # qualquer outra) -- a própria linha já é a informação completa, então
@@ -187,7 +195,7 @@ class EspecieService:
             "valor": linha.valor,
             "descricao": descricao_completa,
         })
-        return {"duplicado": False}
+        return {"duplicado": False, "descricao": descricao_completa, "valor": float(linha.valor), "data": linha.data.isoformat()}
 
     @staticmethod
     def processar_em_background(upload_id: int, conteudo: str):
@@ -198,20 +206,21 @@ class EspecieService:
             linhas = parser.parse(conteudo)
             erros = list(parser.erros)
             duplicados = []
-            inseridos = 0
+            inseridos_detalhes = []
 
             for linha in linhas:
                 try:
                     resultado = EspecieService._processar_linha(db, linha)
+                    item = {
+                        "linha": linha.linha_csv,
+                        "descricao": resultado["descricao"],
+                        "valor": resultado["valor"],
+                        "data": resultado["data"],
+                    }
                     if resultado["duplicado"]:
-                        duplicados.append({
-                            "linha": linha.linha_csv,
-                            "descricao": resultado["descricao"],
-                            "valor": resultado["valor"],
-                            "data": resultado["data"],
-                        })
+                        duplicados.append(item)
                     else:
-                        inseridos += 1
+                        inseridos_detalhes.append(item)
                 except Exception as e:
                     erros.append({
                         "linha": linha.linha_csv,
@@ -220,13 +229,14 @@ class EspecieService:
                     })
 
             resultado_resumo = {
-                "inseridos": inseridos,
+                "inseridos": len(inseridos_detalhes),
                 "duplicados": len(duplicados),
                 "erros": len(erros),
                 "detalhes_erros": erros,
                 "detalhes_duplicados": duplicados,
+                "detalhes_inseridos": inseridos_detalhes,
                 "mensagem": (
-                    f"Processamento concluído. {inseridos} inseridos, "
+                    f"Processamento concluído. {len(inseridos_detalhes)} inseridos, "
                     f"{len(duplicados)} duplicados, {len(erros)} erros."
                 ),
             }
