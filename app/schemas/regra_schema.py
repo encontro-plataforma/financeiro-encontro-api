@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from pydantic import BaseModel, Field
 
 from app.models.enums import EscopoRegraGrupo, ModoExtracaoRegra, TipoDetalhamento
@@ -74,7 +72,7 @@ class TesteObservacaoRequest(BaseModel):
 
 class TesteDetalhamentoResponse(BaseModel):
     tipo: TipoDetalhamento
-    valor: Decimal
+    valor: float
     referencia_id: int | None = None
 
 
@@ -86,6 +84,6 @@ class TesteRegraResponse(BaseModel):
 
 class TesteObservacaoResponse(BaseModel):
     modelo_extracao: str
-    total_gerado: Decimal
-    numero_parcelas: Decimal
+    total_gerado: float
+    numero_parcelas: float
     regras: list[TesteRegraResponse]

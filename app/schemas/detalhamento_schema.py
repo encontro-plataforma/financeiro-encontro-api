@@ -1,5 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
@@ -12,7 +11,10 @@ class DetalhamentoResponse(BaseModel):
     lancamento_id: int
     tipo: TipoDetalhamento
     referencia_id: int | None
-    valor: Decimal
+    # float, não Decimal: Pydantic v2 serializa Decimal como string no JSON,
+    # o que quebra somas/comparações feitas no frontend (ex. somaVinculada
+    # em vinculo-lancamento.component.ts) -- mesmo padrão de LancamentoBase.valor.
+    valor: float
     descricao: str
     # Calculados na serialização (ver DetalhamentoService): nome de quem foi
     # detalhado (ou "OFERTA"/"OUTRO") e o texto de observação efetivo — pra
@@ -34,7 +36,7 @@ class DetalhamentoCreate(BaseModel):
     # ge=0 (não gt=0): uma ficha isenta (forma de pagamento ISENÇÃO) tem
     # pagamento zerado e precisa poder vincular um Detalhamento também
     # zerado -- ver "Nova forma de pagamento ISENÇÃO" no HISTORY.md.
-    valor: Decimal = Field(..., ge=0)
+    valor: float = Field(..., ge=0)
     descricao: str = ""
 
 
@@ -42,5 +44,5 @@ class DetalhamentoUpdate(BaseModel):
     lancamento_id: int | None = None
     tipo: TipoDetalhamento | None = None
     referencia_id: int | None = None
-    valor: Decimal | None = Field(None, ge=0)
+    valor: float | None = Field(None, ge=0)
     descricao: str | None = None

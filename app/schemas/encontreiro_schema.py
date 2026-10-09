@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from decimal import Decimal
 
 from pydantic import BaseModel
 
@@ -28,7 +27,10 @@ class EncontreiroResponse(BaseModel):
     veiculo: str | None
     dt_pagamento: date | None
     nome_pagador: str | None
-    pagamento: Decimal | None
+    # float, não Decimal: Pydantic v2 serializa Decimal como string no JSON,
+    # o que quebra comparações estritas no frontend (ex. `=== 0` p/ isenção)
+    # -- mesmo padrão usado em LancamentoBase.valor (lancamento_schema.py).
+    pagamento: float | None
     observacao: str | None
     criado_em: datetime
     auditado: bool
@@ -58,7 +60,7 @@ class EncontreiroCreate(BaseModel):
     veiculo: str | None = None
     dt_pagamento: date | None = None
     nome_pagador: str | None = None
-    pagamento: Decimal | None = None
+    pagamento: float | None = None
     observacao: str | None = None
 
 
@@ -81,5 +83,5 @@ class EncontreiroUpdate(BaseModel):
     veiculo: str | None = None
     dt_pagamento: date | None = None
     nome_pagador: str | None = None
-    pagamento: Decimal | None = None
+    pagamento: float | None = None
     observacao: str | None = None
