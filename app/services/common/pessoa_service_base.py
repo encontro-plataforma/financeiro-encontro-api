@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.database.session import SessionLocal
-from app.models.enums import StatusProcessamento
+from app.models.enums import StatusProcessamento, TipoOrigemUpload
 from app.models.upload_file import UploadFile
 from app.services.auditoria_service import AuditoriaService
 from app.services.common.tipo_pessoa_config import TipoPessoaConfig
@@ -94,11 +94,20 @@ class PessoaImportavelServiceBase(ABC):
         return {"linha": row.linha, "id_csv": row.id, "existente_id": duplicado.id}
 
     @classmethod
+    def _item_inserido(cls, row) -> dict:
+        return {"linha": row.linha, "id": row.id, "nome": row.nome}
+
+    @classmethod
     def _montar_resultado(
-        cls, inseridos: int, atualizados: int, ignorados: list[dict]
+        cls,
+        inseridos: int,
+        atualizados: int,
+        ignorados: list[dict],
+        inseridos_detalhes: list[dict],
     ) -> dict:
         return {
             "inseridos": inseridos,
+            "detalhes_inseridos": inseridos_detalhes,
             "atualizados": atualizados,
             "mensagem": (
                 f"Processamento concluído. {inseridos} inseridos, {atualizados} atualizados."
@@ -135,6 +144,9 @@ class PessoaImportavelServiceBase(ABC):
                 "conteudo_csv": conteudo,
                 "tamanho_bytes": len(conteudo.encode("utf-8")),
                 "status": StatusProcessamento.PROCESSANDO,
+                # `CONFIG.label` já é "ENCONTREIRO"/"ENCONTRISTA", reaproveitado
+                # como valor do enum TipoOrigemUpload (ver tipo_pessoa_config.py).
+                "tipo_origem": TipoOrigemUpload(cls.CONFIG.label),
             },
         )
 
@@ -148,6 +160,7 @@ class PessoaImportavelServiceBase(ABC):
             inseridos = 0
             atualizados = 0
             ignorados: list[dict] = []
+            inseridos_detalhes: list[dict] = []
 
             for row in linhas:
                 existente = cls.CONFIG.repository.get_by_id(db, row.id)
@@ -183,6 +196,7 @@ class PessoaImportavelServiceBase(ABC):
                 # de id/duplicata acima.
                 db.flush()
                 inseridos += 1
+                inseridos_detalhes.append(cls._item_inserido(row))
 
             if inseridos:
                 db.execute(
@@ -194,7 +208,7 @@ class PessoaImportavelServiceBase(ABC):
 
             db.commit()
 
-            resultado = cls._montar_resultado(inseridos, atualizados, ignorados)
+            resultado = cls._montar_resultado(inseridos, atualizados, ignorados, inseridos_detalhes)
 
             UploadFileService.update_status(
                 db,

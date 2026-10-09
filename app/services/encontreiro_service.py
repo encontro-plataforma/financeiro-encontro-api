@@ -91,9 +91,16 @@ class EncontreiroService(PessoaImportavelServiceBase):
         }
 
     @classmethod
-    def _montar_resultado(cls, inseridos: int, atualizados: int, ignorados: list[dict]) -> dict:
+    def _montar_resultado(
+        cls,
+        inseridos: int,
+        atualizados: int,
+        ignorados: list[dict],
+        inseridos_detalhes: list[dict],
+    ) -> dict:
         return {
             "inseridos": inseridos,
+            "detalhes_inseridos": inseridos_detalhes,
             "atualizados": atualizados,
             "ignorados": len(ignorados),
             "detalhes_ignorados": ignorados,

@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from decimal import Decimal
 
 from pydantic import BaseModel
 
@@ -48,7 +47,10 @@ class EncontristaResponse(BaseModel):
     alergia_comorbidade: str | None
     dt_pagamento: date | None
     nome_pagador: str | None
-    pagamento: Decimal | None
+    # float, não Decimal: Pydantic v2 serializa Decimal como string no JSON,
+    # o que quebra comparações estritas no frontend (ex. `=== 0` p/ isenção)
+    # -- mesmo padrão usado em LancamentoBase.valor (lancamento_schema.py).
+    pagamento: float | None
     observacao: str | None
     criado_em: datetime
     auditado: bool
@@ -87,7 +89,7 @@ class EncontristaCreate(BaseModel):
     alergia_comorbidade: str | None = None
     dt_pagamento: date | None = None
     nome_pagador: str | None = None
-    pagamento: Decimal | None = None
+    pagamento: float | None = None
     observacao: str | None = None
 
 
@@ -119,5 +121,5 @@ class EncontristaUpdate(BaseModel):
     alergia_comorbidade: str | None = None
     dt_pagamento: date | None = None
     nome_pagador: str | None = None
-    pagamento: Decimal | None = None
+    pagamento: float | None = None
     observacao: str | None = None
