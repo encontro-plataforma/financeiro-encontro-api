@@ -1,5 +1,26 @@
 # Histórico de Versões
 
+## [0.7.0] — 2026-10-09
+
+### Corrigido
+- `Encontreiro.pagamento`/`Encontrista.pagamento`, `Detalhamento.valor` e os campos monetários dos DTOs de
+  Auditoria (`SimulacaoAuditoriaResponse`, `InscricaoResumoDto`, `PendenciaNaoIncluidaDto`,
+  `ItemDetalhamentoSimuladoDto`) e de "testar regra" passam a declarar `float` em vez de `Decimal` — Pydantic
+  v2 serializa `Decimal` como string no JSON (`"0.00"`), o que quebrava comparações estritas (`=== 0`) no
+  frontend, como o caso especial de ficha isenta em `VinculoLancamentoComponent` (sempre caía no aviso
+  "inscrição já totalmente vinculada" em vez de permitir o vínculo de valor zero)
+
+### Adicionado
+- `EspecieService`: uma linha de inscrição comum (`TIPO=ENCONTREIRO`/`ENCONTRISTA`) com a coluna `valor`
+  zerada também nasce com `forma_pagamento = ISENÇÃO` — antes só `TIPO=ISENÇÃO` explícito fazia isso, e uma
+  ficha isenta lançada sem marcar o tipo certo acabava virando `DINHEIRO` com valor 0
+- `UploadFile.tipo_origem` ganha os valores `ENCONTREIRO`/`ENCONTRISTA` (migração `ALTER TYPE ... ADD VALUE`),
+  preenchidos a partir de `TipoPessoaConfig.label` em `PessoaImportavelServiceBase.iniciar_conciliacao` —
+  antes ficava sempre `NULL` para esses dois fluxos
+- `resultado_processamento` de qualquer upload (bancário, espécie, encontreiro, encontrista) passa a trazer
+  `detalhes_inseridos` (linha a linha, no mesmo formato que já existia para erros/duplicados), permitindo ao
+  frontend listar o que foi inserido com sucesso, não só contar
+
 ## [0.6.0] — 2026-10-01
 
 ### Adicionado
